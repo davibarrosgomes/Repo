@@ -54,7 +54,7 @@ src/
   server/                 -> ServerScriptService.Server
     init.server.lua       Entry point: remotes, cooldowns, dash/block, spawning, KO leaderboard
     CombatService.lua     Hitboxes, damage, ult charge, blocking, stun/ragdoll/knockback/rubberize
-    MapBuilder.lua        Generates the arena (plaza, execution platform, buildings, spawns)
+    MapBuilder.lua        Generates Onigashima (horned skull mountain, Kaido's mansion, village, spawns)
     Characters/
       Luffy.lua           Every Luffy move (base + Gear 5) and the ult transformation
   client/                 -> StarterPlayerScripts.Client
