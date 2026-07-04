@@ -5,11 +5,13 @@
 
 	Status is stored as attributes on the character model so both server
 	logic and client input code can read it:
-		Stunned     (bool)  - cannot act or move
-		Ragdolled   (bool)  - knocked down (PlatformStand)
-		Rubberized  (bool)  - Toon Force paralysis
-		Busy        (bool)  - mid-attack, cannot start another action
-		Gear5       (bool)  - ult transformation active
+		Stunned     (bool)   - cannot act or move
+		Ragdolled   (bool)   - knocked down (PlatformStand)
+		Rubberized  (bool)   - Toon Force paralysis
+		Busy        (bool)   - mid-attack, cannot start another action
+		Gear5       (bool)   - ult transformation active
+		Blocking    (bool)   - guarding (front hits absorbed by BlockHealth)
+		BlockHealth (number) - remaining guard durability
 ]]
 
 local Players = game:GetService("Players")
@@ -27,6 +29,8 @@ local Combat = {}
 local stunTokens = {}
 local ragdollTokens = {}
 local busyTokens = {}
+-- [character] = os.clock() time until which re-guarding is forbidden
+local blockLock = {}
 
 -- ========================================================================
 -- Small helpers
@@ -88,6 +92,9 @@ function Combat.RefreshMovement(character)
 	end
 	if character:GetAttribute("Stunned") or character:GetAttribute("Rubberized") then
 		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+	elseif character:GetAttribute("Blocking") then
+		humanoid.WalkSpeed = Config.Block.WalkSpeed
 		humanoid.JumpPower = 0
 	else
 		humanoid.WalkSpeed = baseWalkSpeed(character)
@@ -240,6 +247,75 @@ function Combat.SetBusy(character, duration, freeze)
 end
 
 -- ========================================================================
+-- Blocking
+-- ========================================================================
+
+function Combat.SetBlocking(character, enabled)
+	local wasBlocking = character:GetAttribute("Blocking") == true
+	if enabled then
+		if wasBlocking or not Combat.IsAlive(character) then
+			return
+		end
+		if not Combat.IsActionable(character) then
+			return
+		end
+		if os.clock() < (blockLock[character] or 0) then
+			return -- guard is still broken
+		end
+		if (character:GetAttribute("BlockHealth") or 0) <= 0 then
+			return
+		end
+		character:SetAttribute("Blocking", true)
+		VFX:FireAllClients("BlockStart", { Character = character })
+	else
+		if not wasBlocking then
+			return
+		end
+		character:SetAttribute("Blocking", false)
+		VFX:FireAllClients("BlockEnd", { Character = character })
+	end
+	Combat.RefreshMovement(character)
+end
+
+local function tryBlock(attackerPlayer, victimCharacter, amount)
+	if victimCharacter:GetAttribute("Blocking") ~= true then
+		return false
+	end
+
+	-- Guards only cover the front 180 degrees.
+	local attackerCharacter = attackerPlayer and attackerPlayer.Character
+	local attackerRoot = attackerCharacter and Combat.Root(attackerCharacter)
+	local victimRoot = Combat.Root(victimCharacter)
+	if attackerRoot and victimRoot then
+		local toAttacker = attackerRoot.Position - victimRoot.Position
+		if toAttacker.Magnitude > 0.001 and victimRoot.CFrame.LookVector:Dot(toAttacker.Unit) <= 0 then
+			return false -- hit from behind
+		end
+	end
+
+	local blockHealth = (victimCharacter:GetAttribute("BlockHealth") or 0) - amount
+	if blockHealth > 0 then
+		-- Fully absorbed: no damage, no stun, no knockback.
+		victimCharacter:SetAttribute("BlockHealth", blockHealth)
+		if victimRoot then
+			VFX:FireAllClients("BlockHit", { Position = victimRoot.Position })
+		end
+		return true
+	end
+
+	-- GUARD BREAK: the guard shatters, the hit lands, and re-guarding is
+	-- locked out while the victim eats the punish.
+	victimCharacter:SetAttribute("BlockHealth", 0)
+	blockLock[victimCharacter] = os.clock() + Config.Block.BreakLockout
+	Combat.SetBlocking(victimCharacter, false)
+	Combat.Ragdoll(victimCharacter, Config.Block.BreakRagdoll)
+	if victimRoot then
+		VFX:FireAllClients("GuardBreak", { Position = victimRoot.Position })
+	end
+	return false
+end
+
+-- ========================================================================
 -- Knockback
 -- ========================================================================
 
@@ -274,6 +350,7 @@ end
 		StunTime
 		RagdollTime
 		SilentVFX (skip the generic hit flash)
+		Unblockable (grabs like Devour go straight through guards)
 ]]
 function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 	opts = opts or {}
@@ -282,6 +359,10 @@ function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 		return false
 	end
 	if victimCharacter:FindFirstChildOfClass("ForceField") then
+		return false
+	end
+
+	if not opts.Unblockable and tryBlock(attackerPlayer, victimCharacter, amount) then
 		return false
 	end
 
@@ -327,6 +408,7 @@ function Combat.ForgetCharacter(character)
 	stunTokens[character] = nil
 	ragdollTokens[character] = nil
 	busyTokens[character] = nil
+	blockLock[character] = nil
 end
 
 return Combat

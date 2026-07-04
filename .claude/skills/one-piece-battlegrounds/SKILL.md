@@ -36,9 +36,10 @@ written in Luau and laid out for Rojo.
 | --- | --- |
 | `default.project.json` | Rojo tree (shared → ReplicatedStorage, server → ServerScriptService, client → StarterPlayerScripts) |
 | `src/shared/Config.lua` | Every tunable number; `Config.Base[slot]` and `Config.Gear5[slot]` are the movesets |
-| `src/shared/Remotes.lua` | Creates/fetches RemoteEvents (`UseSkill`, `M1`, `ActivateUlt`, `VFX`, `HUDUpdate`) |
-| `src/server/init.server.lua` | Entry point: remote validation, per-slot cooldown store, `casting` lock, spawning, KO leaderstats |
-| `src/server/CombatService.lua` | Combat primitives: `FrontHitbox`, `NearestTarget`, `DealDamage`, statuses, knockback, ult charge |
+| `src/shared/Remotes.lua` | Creates/fetches RemoteEvents (`UseSkill`, `M1`, `ActivateUlt`, `Dash`, `Block`, `VFX`, `HUDUpdate`) |
+| `src/server/init.server.lua` | Entry point: remote validation, per-slot cooldown store, `casting` lock, dash/block handling, block regen, spawning, KO leaderstats |
+| `src/server/CombatService.lua` | Combat primitives: `FrontHitbox`, `NearestTarget`, `DealDamage`, statuses, blocking/guard break, knockback, ult charge |
+| `src/server/MapBuilder.lua` | Generates the arena (geometry, spawns, kill plane, lighting) at startup |
 | `src/server/Characters/Luffy.lua` | All Luffy moves; dispatch via `Luffy.UseSkill(player, character, slot)` returning the cooldown (or nil if the cast failed) |
 | `src/client/init.client.lua` | Input: LMB = M1, keys 1–4 = skills, G = ult |
 | `src/client/HUD.lua` | Skill bar, cooldown sweeps, ult bar; slot names swap when `Gear5` is active |
@@ -91,3 +92,6 @@ Syntax-check Luau without Studio: `stylua --syntax Luau --check src`.
   insta-fill bars.
 - Dash moves snap in front of `Combat.NearestTarget` rather than tweening —
   battlegrounds-style feel and no pathing edge cases.
+- Blocking (hold F) absorbs front-180° hits using the `BlockHealth` attribute;
+  guard break ragdolls + locks re-guarding. Grabs set `Unblockable = true` in
+  their `DealDamage` opts. Attacking or dashing drops the guard.

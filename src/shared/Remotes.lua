@@ -6,6 +6,8 @@
 	UseSkill     client -> server : (slot: number 1-4)
 	M1           client -> server : ()
 	ActivateUlt  client -> server : ()
+	Dash         client -> server : ()
+	Block        client -> server : (enabled: boolean)
 	VFX          server -> client : (effectName: string, data: table)
 	HUDUpdate    server -> client : (kind: string, ...)
 ]]
@@ -13,7 +15,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "UseSkill", "M1", "ActivateUlt", "VFX", "HUDUpdate" }
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "VFX", "HUDUpdate" }
 
 local Remotes = {}
 

@@ -18,6 +18,27 @@ Config.Character = {
 }
 
 -- ========================================================================
+-- Dash (Q)
+-- ========================================================================
+Config.Dash = {
+	Speed = 90,
+	Duration = 0.22,
+	UpBoost = 4,
+	Cooldown = 3,
+}
+
+-- ========================================================================
+-- Block (hold F)
+-- ========================================================================
+Config.Block = {
+	MaxHealth = 45,        -- damage a full guard can absorb
+	RegenPerSecond = 9,    -- regenerates while not blocking
+	WalkSpeed = 6,         -- movement while guarding
+	BreakLockout = 4,      -- seconds you cannot re-guard after a guard break
+	BreakRagdoll = 2.5,    -- ragdoll punish when the guard shatters
+}
+
+-- ========================================================================
 -- M1 (left click) combo
 -- ========================================================================
 Config.M1 = {

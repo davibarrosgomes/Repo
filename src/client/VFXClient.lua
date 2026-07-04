@@ -32,6 +32,7 @@ effectsFolder.Parent = workspace
 -- Per-character state for looping effects.
 local gear5Emitters = {}
 local rubberHighlights = {}
+local blockHighlights = {}
 
 -- ========================================================================
 -- Helpers
@@ -446,6 +447,57 @@ function Effects.RubberizeStart(data)
 			task.wait(0.25)
 		end
 	end)
+end
+
+function Effects.Dash(data)
+	local r = root(data.Character)
+	if not r then
+		return
+	end
+	-- Quick white streak trailing opposite the dash direction.
+	local direction = data.Direction or r.CFrame.LookVector
+	local streak = makePart({
+		Size = Vector3.new(1.5, 1.5, 8),
+		CFrame = CFrame.lookAlong(r.Position - direction * 4, direction),
+		Color = Color3.new(1, 1, 1),
+		Material = Enum.Material.Neon,
+		Transparency = 0.4,
+	})
+	tween(streak, 0.25, { Size = Vector3.new(0.2, 0.2, 14), Transparency = 1 })
+	Debris:AddItem(streak, 0.3)
+end
+
+function Effects.BlockStart(data)
+	local character = data.Character
+	if blockHighlights[character] then
+		return
+	end
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(180, 210, 255)
+	highlight.OutlineColor = Color3.fromRGB(200, 225, 255)
+	highlight.FillTransparency = 0.75
+	highlight.Parent = character
+	blockHighlights[character] = highlight
+end
+
+function Effects.BlockEnd(data)
+	local highlight = blockHighlights[data.Character]
+	if highlight then
+		highlight:Destroy()
+		blockHighlights[data.Character] = nil
+	end
+end
+
+function Effects.BlockHit(data)
+	burst(data.Position, Color3.fromRGB(180, 210, 255), 10, 18)
+	playSound(Config.Sounds.Punch, workspace, 0.5, 1.4)
+end
+
+function Effects.GuardBreak(data)
+	burst(data.Position, Color3.fromRGB(255, 90, 90), 35, 35)
+	shockwave(data.Position, 16, Color3.fromRGB(255, 120, 120), 0.4)
+	playSound(Config.Sounds.HeavyImpact, workspace, 1.2)
+	shake(data.Position, 0.8, 0.3)
 end
 
 function Effects.RubberizeEnd(data)

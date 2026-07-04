@@ -335,7 +335,8 @@ local function devour(player, character)
 		VFX:FireAllClients("Devour", { Character = character, Target = victim })
 		task.wait(0.6) -- the head grows and chomps
 		if Combat.IsAlive(character) and Combat.IsAlive(victim) then
-			Combat.DealDamage(player, victim, cfg.Damage, { SilentVFX = true })
+			-- A grab: guards do not save you from being eaten.
+			Combat.DealDamage(player, victim, cfg.Damage, { SilentVFX = true, Unblockable = true })
 		end
 	else
 		VFX:FireAllClients("DevourWhiff", { Character = character })

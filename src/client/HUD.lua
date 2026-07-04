@@ -20,10 +20,14 @@ local ACCENT_BASE = Color3.fromRGB(220, 60, 60)   -- straw hat red
 local ACCENT_GEAR5 = Color3.fromRGB(255, 255, 255)
 local ULT_COLOR = Color3.fromRGB(255, 200, 60)
 
+local BLOCK_COLOR = Color3.fromRGB(180, 210, 255)
+
 local HUD = {}
 
 local slots = {}       -- [slot] = { frame, nameLabel, cooldownOverlay, cooldownLabel }
 local ultFill, ultLabel, ultBar
+local blockFill
+local dashChip
 local gear5Active = false
 
 local function corner(instance, radius)
@@ -175,7 +179,73 @@ function HUD.Init()
 	ultLabel.ZIndex = 2
 	ultLabel.Parent = ultBar
 
+	-- Block bar (guard durability) ---------------------------------------
+	local blockBar = Instance.new("Frame")
+	blockBar.Name = "BlockBar"
+	blockBar.AnchorPoint = Vector2.new(0.5, 1)
+	blockBar.Position = UDim2.new(0.5, 0, 1, -144)
+	blockBar.Size = UDim2.new(0, 340, 0, 8)
+	blockBar.BackgroundColor3 = BG
+	blockBar.BackgroundTransparency = 0.15
+	blockBar.Parent = gui
+	corner(blockBar, 4)
+
+	blockFill = Instance.new("Frame")
+	blockFill.BackgroundColor3 = BLOCK_COLOR
+	blockFill.BorderSizePixel = 0
+	blockFill.Size = UDim2.new(1, 0, 1, 0)
+	blockFill.Parent = blockBar
+	corner(blockFill, 4)
+
+	-- Dash chip (Q) --------------------------------------------------------
+	dashChip = Instance.new("Frame")
+	dashChip.Name = "DashChip"
+	dashChip.AnchorPoint = Vector2.new(1, 1)
+	dashChip.Position = UDim2.new(0.5, -(2 * 92 + 2 * 10 + 8), 1, -18)
+	dashChip.Size = UDim2.new(0, 44, 0, 44)
+	dashChip.BackgroundColor3 = BG
+	dashChip.BackgroundTransparency = 0.15
+	dashChip.Parent = gui
+	corner(dashChip, 8)
+
+	local dashLabel = Instance.new("TextLabel")
+	dashLabel.BackgroundTransparency = 1
+	dashLabel.Size = UDim2.new(1, 0, 1, 0)
+	dashLabel.Font = Enum.Font.GothamBlack
+	dashLabel.TextSize = 16
+	dashLabel.TextColor3 = Color3.new(1, 1, 1)
+	dashLabel.Text = "Q"
+	dashLabel.Parent = dashChip
+
+	local dashOverlay = Instance.new("Frame")
+	dashOverlay.Name = "Cooldown"
+	dashOverlay.AnchorPoint = Vector2.new(0, 1)
+	dashOverlay.Position = UDim2.new(0, 0, 1, 0)
+	dashOverlay.Size = UDim2.new(1, 0, 0, 0)
+	dashOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	dashOverlay.BackgroundTransparency = 0.4
+	dashOverlay.BorderSizePixel = 0
+	dashOverlay.ZIndex = 2
+	dashOverlay.Parent = dashChip
+	corner(dashOverlay, 8)
+
 	refreshSlotNames()
+
+	-- Guard durability lives as an attribute on the character.
+	local function bindCharacter(character)
+		local function onBlockHealth()
+			local blockHealth = character:GetAttribute("BlockHealth") or Config.Block.MaxHealth
+			local ratio = math.clamp(blockHealth / Config.Block.MaxHealth, 0, 1)
+			blockFill.Size = UDim2.new(ratio, 0, 1, 0)
+			blockFill.BackgroundColor3 = ratio < 0.3 and Color3.fromRGB(255, 120, 120) or BLOCK_COLOR
+		end
+		character:GetAttributeChangedSignal("BlockHealth"):Connect(onBlockHealth)
+		onBlockHealth()
+	end
+	LocalPlayer.CharacterAdded:Connect(bindCharacter)
+	if LocalPlayer.Character then
+		bindCharacter(LocalPlayer.Character)
+	end
 
 	-- Ult charge is an attribute on the player, kept up to date by the server.
 	local function onCharge()
@@ -214,6 +284,17 @@ function HUD.SetCooldown(slot, duration)
 			ui.overlay.Size = UDim2.new(1, 0, 0, 0)
 		end
 	end)
+end
+
+function HUD.SetDashCooldown(duration)
+	local overlay = dashChip and dashChip:FindFirstChild("Cooldown")
+	if not overlay then
+		return
+	end
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	TweenService:Create(overlay, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Size = UDim2.new(1, 0, 0, 0),
+	}):Play()
 end
 
 function HUD.ClearCooldowns()

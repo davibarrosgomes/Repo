@@ -5,6 +5,8 @@
 	Controls:
 		Left Mouse  - M1 combo
 		1 / 2 / 3 / 4 - skills
+		Q           - dash
+		F (hold)    - block
 		G           - activate Gear 5 (when the ult bar is full)
 ]]
 
@@ -23,6 +25,8 @@ local LocalPlayer = Players.LocalPlayer
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
 local ActivateUlt = Remotes.get("ActivateUlt")
+local Dash = Remotes.get("Dash")
+local Block = Remotes.get("Block")
 local HUDUpdate = Remotes.get("HUDUpdate")
 
 HUD.Init()
@@ -71,9 +75,27 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 
+	if input.KeyCode == Enum.KeyCode.Q then
+		if canAct() then
+			Dash:FireServer()
+		end
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.F then
+		Block:FireServer(true)
+		return
+	end
+
 	local slot = SKILL_KEYS[input.KeyCode]
 	if slot and canAct() then
 		UseSkill:FireServer(slot)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.F then
+		Block:FireServer(false)
 	end
 end)
 
@@ -82,5 +104,7 @@ HUDUpdate.OnClientEvent:Connect(function(kind, ...)
 		HUD.SetCooldown(...)
 	elseif kind == "UltState" then
 		HUD.SetUltState(...)
+	elseif kind == "DashCooldown" then
+		HUD.SetDashCooldown(...)
 	end
 end)

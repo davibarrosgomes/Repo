@@ -13,7 +13,14 @@ ultimate transformation that replaces all four skills.
 | **2** | Skill 2 |
 | **3** | Skill 3 |
 | **4** | Skill 4 |
+| **Q** | Dash (in your movement direction) |
+| **F** (hold) | Block — absorbs front hits until your guard breaks |
 | **G** | Activate ult (Gear 5) when the bar is full |
+
+**Blocking:** your guard has its own durability bar (regenerates while not
+blocking). It only covers the front 180°, attacking drops it, and when it
+shatters you're ragdolled and locked out of guarding for a few seconds.
+Devour is a grab and goes straight through guards.
 
 ## Luffy — Base Moveset
 
@@ -45,8 +52,9 @@ src/
     Config.lua            All balance numbers (damage, cooldowns, ranges, timings)
     Remotes.lua           RemoteEvent creation/lookup
   server/                 -> ServerScriptService.Server
-    init.server.lua       Entry point: remotes, cooldowns, spawning, KO leaderboard
-    CombatService.lua     Hitboxes, damage, ult charge, stun/ragdoll/knockback/rubberize
+    init.server.lua       Entry point: remotes, cooldowns, dash/block, spawning, KO leaderboard
+    CombatService.lua     Hitboxes, damage, ult charge, blocking, stun/ragdoll/knockback/rubberize
+    MapBuilder.lua        Generates the arena (plaza, execution platform, buildings, spawns)
     Characters/
       Luffy.lua           Every Luffy move (base + Gear 5) and the ult transformation
   client/                 -> StarterPlayerScripts.Client
