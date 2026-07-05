@@ -8,6 +8,65 @@
 local Config = {}
 
 -- ========================================================================
+-- Playable roster (drives the character-select menu).
+-- Only entries with Locked = false have a server-side moveset module.
+-- To add a character: build src/server/Characters/<Id>.lua, register it in
+-- init.server.lua's Characters table, and flip Locked to false here.
+-- ========================================================================
+Config.Roster = {
+	{
+		Id = "Luffy",
+		Name = "Monkey D. Luffy",
+		Title = "Gomu Gomu no Mi",
+		Color = Color3.fromRGB(220, 60, 60),
+		Locked = false,
+		Moves = {
+			"Gomu Gomu no Pistol",
+			"Gomu Gomu no Bazooka",
+			"Gomu Gomu no Gatling",
+			"Rubber Combo",
+		},
+		Ult = "Gear 5",
+	},
+	{
+		Id = "Zoro",
+		Name = "Roronoa Zoro",
+		Title = "Santoryu",
+		Color = Color3.fromRGB(60, 150, 90),
+		Locked = true,
+		Moves = { "Oni Giri", "Tora Gari", "Ul-Tora Gari", "Sword Combo" },
+		Ult = "Ashura",
+	},
+	{
+		Id = "Sanji",
+		Name = "Vinsmoke Sanji",
+		Title = "Black Leg",
+		Color = Color3.fromRGB(230, 200, 70),
+		Locked = true,
+		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Ult = "Diable Jambe",
+	},
+	{
+		Id = "Ace",
+		Name = "Portgas D. Ace",
+		Title = "Mera Mera no Mi",
+		Color = Color3.fromRGB(235, 120, 40),
+		Locked = true,
+		Moves = { "Hiken", "Higan", "Enkai", "Flame Combo" },
+		Ult = "Great Flame Commandment",
+	},
+	{
+		Id = "Law",
+		Name = "Trafalgar Law",
+		Title = "Ope Ope no Mi",
+		Color = Color3.fromRGB(210, 210, 220),
+		Locked = true,
+		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
+		Ult = "Gamma Knife",
+	},
+}
+
+-- ========================================================================
 -- General character stats
 -- ========================================================================
 Config.Character = {

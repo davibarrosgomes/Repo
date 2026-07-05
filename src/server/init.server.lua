@@ -20,10 +20,35 @@ local M1 = Remotes.get("M1")
 local ActivateUlt = Remotes.get("ActivateUlt")
 local Dash = Remotes.get("Dash")
 local Block = Remotes.get("Block")
+local SelectCharacter = Remotes.get("SelectCharacter")
 local VFX = Remotes.get("VFX")
 local HUDUpdate = Remotes.get("HUDUpdate")
 
 MapBuilder.Build()
+
+-- ========================================================================
+-- Character registry
+-- Every playable (unlocked) character has a module here with a uniform
+-- interface: UseSkill, M1, ActivateUlt, DeactivateUlt, ForgetPlayer.
+-- Add a new character with one line once its module + roster entry exist.
+-- ========================================================================
+local Characters = {
+	Luffy = Luffy,
+}
+local DEFAULT_CHARACTER = "Luffy"
+
+-- Which roster ids are actually selectable (unlocked + have a module).
+local unlockedIds = {}
+for _, entry in Config.Roster do
+	if not entry.Locked and Characters[entry.Id] then
+		unlockedIds[entry.Id] = true
+	end
+end
+
+local function moduleFor(player)
+	local id = player:GetAttribute("SelectedCharacter") or DEFAULT_CHARACTER
+	return Characters[id] or Luffy
+end
 
 -- [player] = { [slot] = os.clock() time when the slot is ready again }
 local cooldowns = {}
@@ -57,7 +82,7 @@ UseSkill.OnServerEvent:Connect(function(player, slot)
 	Combat.SetBlocking(character, false) -- attacking drops your guard
 
 	casting[player] = true
-	local ok, cooldown = pcall(Luffy.UseSkill, player, character, slot)
+	local ok, cooldown = pcall(moduleFor(player).UseSkill, player, character, slot)
 	casting[player] = nil
 
 	if not ok then
@@ -74,7 +99,7 @@ M1.OnServerEvent:Connect(function(player)
 	local character = player.Character
 	if character and not casting[player] then
 		Combat.SetBlocking(character, false)
-		Luffy.M1(player, character)
+		moduleFor(player).M1(player, character)
 	end
 end)
 
@@ -153,10 +178,39 @@ ActivateUlt.OnServerEvent:Connect(function(player)
 	if not character then
 		return
 	end
-	if Luffy.ActivateUlt(player, character) then
+	if moduleFor(player).ActivateUlt(player, character) then
 		-- Fresh moveset, fresh slots.
 		cooldowns[player] = {}
 	end
+end)
+
+-- ========================================================================
+-- Character selection
+-- ========================================================================
+
+SelectCharacter.OnServerEvent:Connect(function(player, id)
+	if type(id) ~= "string" or not unlockedIds[id] then
+		return
+	end
+	if player:GetAttribute("SelectedCharacter") == id then
+		return
+	end
+
+	-- Drop any active ult on the current character before switching.
+	if player.Character then
+		local current = moduleFor(player)
+		if current.DeactivateUlt then
+			current.DeactivateUlt(player, player.Character)
+		end
+	end
+
+	player:SetAttribute("SelectedCharacter", id)
+	player:SetAttribute("UltCharge", 0)
+	cooldowns[player] = {}
+	dashReady[player] = nil
+
+	-- Respawn so any character-specific setup applies cleanly.
+	player:LoadCharacter()
 end)
 
 -- ========================================================================
@@ -196,13 +250,14 @@ local function onCharacterAdded(player, character)
 				end
 			end
 		end
-		Luffy.DeactivateUlt(player, character)
+		moduleFor(player).DeactivateUlt(player, character)
 		Combat.ForgetCharacter(character)
 	end)
 end
 
 Players.PlayerAdded:Connect(function(player)
 	player:SetAttribute("UltCharge", 0)
+	player:SetAttribute("SelectedCharacter", DEFAULT_CHARACTER)
 
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
@@ -223,7 +278,11 @@ Players.PlayerRemoving:Connect(function(player)
 	cooldowns[player] = nil
 	casting[player] = nil
 	dashReady[player] = nil
-	Luffy.ForgetPlayer(player)
+	for _, module in Characters do
+		if module.ForgetPlayer then
+			module.ForgetPlayer(player)
+		end
+	end
 	if player.Character then
 		Combat.ForgetCharacter(player.Character)
 	end

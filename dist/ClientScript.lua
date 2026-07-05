@@ -25,6 +25,65 @@ local Config = (function()
 local Config = {}
 
 -- ========================================================================
+-- Playable roster (drives the character-select menu).
+-- Only entries with Locked = false have a server-side moveset module.
+-- To add a character: build src/server/Characters/<Id>.lua, register it in
+-- init.server.lua's Characters table, and flip Locked to false here.
+-- ========================================================================
+Config.Roster = {
+	{
+		Id = "Luffy",
+		Name = "Monkey D. Luffy",
+		Title = "Gomu Gomu no Mi",
+		Color = Color3.fromRGB(220, 60, 60),
+		Locked = false,
+		Moves = {
+			"Gomu Gomu no Pistol",
+			"Gomu Gomu no Bazooka",
+			"Gomu Gomu no Gatling",
+			"Rubber Combo",
+		},
+		Ult = "Gear 5",
+	},
+	{
+		Id = "Zoro",
+		Name = "Roronoa Zoro",
+		Title = "Santoryu",
+		Color = Color3.fromRGB(60, 150, 90),
+		Locked = true,
+		Moves = { "Oni Giri", "Tora Gari", "Ul-Tora Gari", "Sword Combo" },
+		Ult = "Ashura",
+	},
+	{
+		Id = "Sanji",
+		Name = "Vinsmoke Sanji",
+		Title = "Black Leg",
+		Color = Color3.fromRGB(230, 200, 70),
+		Locked = true,
+		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Ult = "Diable Jambe",
+	},
+	{
+		Id = "Ace",
+		Name = "Portgas D. Ace",
+		Title = "Mera Mera no Mi",
+		Color = Color3.fromRGB(235, 120, 40),
+		Locked = true,
+		Moves = { "Hiken", "Higan", "Enkai", "Flame Combo" },
+		Ult = "Great Flame Commandment",
+	},
+	{
+		Id = "Law",
+		Name = "Trafalgar Law",
+		Title = "Ope Ope no Mi",
+		Color = Color3.fromRGB(210, 210, 220),
+		Locked = true,
+		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
+		Ult = "Gamma Knife",
+	},
+}
+
+-- ========================================================================
 -- General character stats
 -- ========================================================================
 Config.Character = {
@@ -230,8 +289,9 @@ local Remotes = (function()
 	UseSkill     client -> server : (slot: number 1-4)
 	M1           client -> server : ()
 	ActivateUlt  client -> server : ()
-	Dash         client -> server : ()
-	Block        client -> server : (enabled: boolean)
+	Dash             client -> server : ()
+	Block            client -> server : (enabled: boolean)
+	SelectCharacter  client -> server : (characterId: string)
 	VFX          server -> client : (effectName: string, data: table)
 	HUDUpdate    server -> client : (kind: string, ...)
 ]]
@@ -239,7 +299,7 @@ local Remotes = (function()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "VFX", "HUDUpdate" }
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "VFX", "HUDUpdate" }
 
 local Remotes = {}
 
@@ -1672,6 +1732,347 @@ return VFXClient
 end)()
 
 -- ====================================================================
+-- MODULE: CharacterSelect   (src/client/CharacterSelect.lua)
+-- ====================================================================
+local CharacterSelect = (function()
+--[[
+	CharacterSelect.lua
+	A topbar button (sitting beside the core chat button) that opens a
+	character-select menu built from Config.Roster. Selecting an unlocked
+	character tells the server, which reassigns the moveset and respawns.
+	Locked characters show as "COMING SOON".
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+
+local LocalPlayer = Players.LocalPlayer
+local SelectCharacter = Remotes.get("SelectCharacter")
+
+local BG = Color3.fromRGB(25, 25, 30)
+local PANEL = Color3.fromRGB(32, 32, 40)
+local ACCENT = Color3.fromRGB(220, 60, 60)
+local LOCKED = Color3.fromRGB(90, 90, 100)
+
+local CharacterSelect = {}
+
+local cards = {} -- [id] = { select button, stroke, statusLabel }
+local panel, backdrop, topButton
+
+local function corner(instance, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = instance
+end
+
+local function pad(instance, px)
+	local p = Instance.new("UIPadding")
+	p.PaddingTop = UDim.new(0, px)
+	p.PaddingBottom = UDim.new(0, px)
+	p.PaddingLeft = UDim.new(0, px)
+	p.PaddingRight = UDim.new(0, px)
+	p.Parent = instance
+end
+
+-- ========================================================================
+-- Selection state
+-- ========================================================================
+
+local function currentId()
+	return LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+end
+
+local function refreshStates()
+	local selected = currentId()
+	for _, entry in Config.Roster do
+		local card = cards[entry.Id]
+		if card then
+			if entry.Locked then
+				card.stroke.Enabled = false
+			elseif entry.Id == selected then
+				card.button.Text = "SELECTED"
+				card.button.BackgroundColor3 = entry.Color
+				card.stroke.Enabled = true
+				card.stroke.Color = entry.Color
+			else
+				card.button.Text = "SELECT"
+				card.button.BackgroundColor3 = BG
+				card.stroke.Enabled = false
+			end
+		end
+	end
+	-- Tint the topbar button to the current character's color.
+	local entry
+	for _, e in Config.Roster do
+		if e.Id == selected then
+			entry = e
+			break
+		end
+	end
+	if topButton and entry then
+		topButton.Text = entry.Name:sub(1, 1)
+		topButton.BackgroundColor3 = entry.Color
+	end
+end
+
+-- ========================================================================
+-- Open / close
+-- ========================================================================
+
+local function setOpen(open)
+	backdrop.Visible = open
+	if open then
+		refreshStates()
+		panel.Size = UDim2.fromOffset(0, 0)
+		panel.BackgroundTransparency = 1
+		TweenService:Create(panel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.fromOffset(720, 460),
+			BackgroundTransparency = 0,
+		}):Play()
+	end
+end
+
+-- ========================================================================
+-- Card construction
+-- ========================================================================
+
+local function buildCard(entry, parent, order)
+	local card = Instance.new("Frame")
+	card.LayoutOrder = order
+	card.Size = UDim2.fromOffset(196, 356)
+	card.BackgroundColor3 = PANEL
+	card.Parent = parent
+	corner(card, 10)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = entry.Color
+	stroke.Thickness = 2.5
+	stroke.Enabled = false
+	stroke.Parent = card
+
+	-- Color header with an initial as a stand-in portrait.
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 96)
+	header.BackgroundColor3 = entry.Locked and LOCKED or entry.Color
+	header.BorderSizePixel = 0
+	header.Parent = card
+	corner(header, 10)
+
+	local initial = Instance.new("TextLabel")
+	initial.BackgroundTransparency = 1
+	initial.Size = UDim2.new(1, 0, 1, 0)
+	initial.Font = Enum.Font.GothamBlack
+	initial.TextSize = 54
+	initial.TextColor3 = Color3.new(1, 1, 1)
+	initial.TextTransparency = 0.15
+	initial.Text = entry.Locked and "?" or entry.Name:sub(1, 1)
+	initial.Parent = header
+
+	local name = Instance.new("TextLabel")
+	name.BackgroundTransparency = 1
+	name.Position = UDim2.new(0, 10, 0, 104)
+	name.Size = UDim2.new(1, -20, 0, 20)
+	name.Font = Enum.Font.GothamBold
+	name.TextSize = 15
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextColor3 = Color3.new(1, 1, 1)
+	name.Text = entry.Locked and "???" or entry.Name
+	name.Parent = card
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.new(0, 10, 0, 124)
+	title.Size = UDim2.new(1, -20, 0, 16)
+	title.Font = Enum.Font.Gotham
+	title.TextSize = 11
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = entry.Color
+	title.Text = entry.Locked and "Locked" or entry.Title
+	title.Parent = card
+
+	-- Move list.
+	local moves = Instance.new("TextLabel")
+	moves.BackgroundTransparency = 1
+	moves.Position = UDim2.new(0, 10, 0, 146)
+	moves.Size = UDim2.new(1, -20, 0, 150)
+	moves.Font = Enum.Font.Gotham
+	moves.TextSize = 11
+	moves.TextXAlignment = Enum.TextXAlignment.Left
+	moves.TextYAlignment = Enum.TextYAlignment.Top
+	moves.TextColor3 = Color3.fromRGB(200, 200, 210)
+	moves.RichText = true
+	moves.TextWrapped = true
+	if entry.Locked then
+		moves.Text = "Moveset hidden until\nthis fighter is released."
+		moves.TextColor3 = Color3.fromRGB(150, 150, 160)
+	else
+		local lines = {}
+		for i, move in entry.Moves do
+			table.insert(lines, ("<b>%d</b>  %s"):format(i, move))
+		end
+		table.insert(lines, ("<b>ULT</b>  %s"):format(entry.Ult or "—"))
+		moves.Text = table.concat(lines, "\n")
+	end
+	moves.Parent = card
+
+	-- Select / locked button.
+	local button = Instance.new("TextButton")
+	button.AnchorPoint = Vector2.new(0.5, 1)
+	button.Position = UDim2.new(0.5, 0, 1, -10)
+	button.Size = UDim2.new(1, -20, 0, 34)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.AutoButtonColor = not entry.Locked
+	button.Parent = card
+	corner(button, 7)
+
+	if entry.Locked then
+		button.Text = "COMING SOON"
+		button.BackgroundColor3 = LOCKED
+		button.Active = false
+	else
+		button.Text = "SELECT"
+		button.BackgroundColor3 = BG
+		button.Activated:Connect(function()
+			SelectCharacter:FireServer(entry.Id)
+			setOpen(false)
+		end)
+	end
+
+	cards[entry.Id] = { button = button, stroke = stroke }
+end
+
+-- ========================================================================
+-- Build
+-- ========================================================================
+
+function CharacterSelect.Init()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CharacterSelectGui"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 20
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	-- Topbar button, sitting just right of the core chat button.
+	topButton = Instance.new("TextButton")
+	topButton.Name = "CharacterButton"
+	topButton.Position = UDim2.fromOffset(92, 2)
+	topButton.Size = UDim2.fromOffset(32, 32)
+	topButton.Font = Enum.Font.GothamBlack
+	topButton.TextSize = 18
+	topButton.TextColor3 = Color3.new(1, 1, 1)
+	topButton.Text = "L"
+	topButton.BackgroundColor3 = ACCENT
+	topButton.AutoButtonColor = true
+	topButton.Parent = gui
+	corner(topButton, 16)
+
+	local topStroke = Instance.new("UIStroke")
+	topStroke.Color = Color3.new(1, 1, 1)
+	topStroke.Thickness = 1.5
+	topStroke.Transparency = 0.4
+	topStroke.Parent = topButton
+
+	local tip = Instance.new("TextLabel")
+	tip.BackgroundTransparency = 1
+	tip.AnchorPoint = Vector2.new(0.5, 0)
+	tip.Position = UDim2.new(0.5, 0, 1, 2)
+	tip.Size = UDim2.fromOffset(80, 12)
+	tip.Font = Enum.Font.GothamMedium
+	tip.TextSize = 9
+	tip.TextColor3 = Color3.fromRGB(220, 220, 230)
+	tip.TextStrokeTransparency = 0.5
+	tip.Text = "CHARACTER"
+	tip.Parent = topButton
+
+	-- Modal backdrop.
+	backdrop = Instance.new("TextButton")
+	backdrop.Name = "Backdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.45
+	backdrop.Text = ""
+	backdrop.AutoButtonColor = false
+	backdrop.Visible = false
+	backdrop.Parent = gui
+
+	-- Panel.
+	panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromOffset(720, 460)
+	panel.BackgroundColor3 = BG
+	panel.Parent = backdrop
+	corner(panel, 14)
+	pad(panel, 16)
+
+	local heading = Instance.new("TextLabel")
+	heading.BackgroundTransparency = 1
+	heading.Size = UDim2.new(1, 0, 0, 30)
+	heading.Font = Enum.Font.GothamBlack
+	heading.TextSize = 22
+	heading.TextXAlignment = Enum.TextXAlignment.Left
+	heading.TextColor3 = Color3.new(1, 1, 1)
+	heading.Text = "SELECT CHARACTER"
+	heading.Parent = panel
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.AnchorPoint = Vector2.new(1, 0)
+	closeButton.Position = UDim2.new(1, 0, 0, 0)
+	closeButton.Size = UDim2.fromOffset(30, 30)
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 18
+	closeButton.TextColor3 = Color3.new(1, 1, 1)
+	closeButton.Text = "X"
+	closeButton.BackgroundColor3 = ACCENT
+	closeButton.Parent = panel
+	corner(closeButton, 7)
+
+	-- Scrolling row of cards.
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Position = UDim2.new(0, 0, 0, 42)
+	scroller.Size = UDim2.new(1, 0, 1, -42)
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.ScrollingDirection = Enum.ScrollingDirection.X
+	scroller.AutomaticCanvasSize = Enum.AutomaticSize.X
+	scroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroller.ScrollBarThickness = 6
+	scroller.Parent = panel
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 12)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Parent = scroller
+
+	for order, entry in Config.Roster do
+		buildCard(entry, scroller, order)
+	end
+
+	-- Wiring.
+	topButton.Activated:Connect(function()
+		setOpen(not backdrop.Visible)
+	end)
+	closeButton.Activated:Connect(function()
+		setOpen(false)
+	end)
+	backdrop.Activated:Connect(function()
+		setOpen(false)
+	end)
+	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
+
+	refreshStates()
+end
+
+return CharacterSelect
+end)()
+
+-- ====================================================================
 -- MAIN: init.client   (src/client/init.client.lua)
 -- ====================================================================
 --[[
@@ -1703,6 +2104,7 @@ local HUDUpdate = Remotes.get("HUDUpdate")
 
 HUD.Init()
 VFXClient.Init()
+CharacterSelect.Init()
 
 local SKILL_KEYS = {
 	[Enum.KeyCode.One] = 1,

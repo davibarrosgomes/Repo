@@ -19,6 +19,7 @@ local Remotes = require(Shared.Remotes)
 
 local HUD = require(script.HUD)
 local VFXClient = require(script.VFXClient)
+local CharacterSelect = require(script.CharacterSelect)
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -31,6 +32,7 @@ local HUDUpdate = Remotes.get("HUDUpdate")
 
 HUD.Init()
 VFXClient.Init()
+CharacterSelect.Init()
 
 local SKILL_KEYS = {
 	[Enum.KeyCode.One] = 1,
