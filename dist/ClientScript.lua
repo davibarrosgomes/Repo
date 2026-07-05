@@ -59,8 +59,8 @@ Config.Roster = {
 		Name = "Vinsmoke Sanji",
 		Title = "Black Leg",
 		Color = Color3.fromRGB(230, 200, 70),
-		Locked = true,
-		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Locked = false,
+		Moves = { "Collier Shoot", "Concasse", "Party Table Kick", "Kick Combo" },
 		Ult = "Diable Jambe",
 	},
 	{
@@ -358,6 +358,122 @@ local ZoroAshura = {
 }
 
 -- ========================================================================
+-- Sanji - base moveset (Black Leg; mobile kick fighter)
+-- ========================================================================
+local SanjiBase = {
+	[1] = {
+		Id = "Collier",
+		Name = "Collier Shoot",
+		Damage = 15,
+		Cooldown = 5,
+		WindUp = 0.22,
+		Range = 11,
+		Width = 6,
+		Knockback = 74,
+		RagdollTime = 1.3,
+	},
+	[2] = {
+		Id = "Concasse",
+		Name = "Concasse",
+		Damage = 22,
+		Cooldown = 10,
+		WindUp = 0.42,
+		Range = 10,
+		Width = 9,
+		Knockback = 58, -- driven downward
+		RagdollTime = 2,
+	},
+	[3] = {
+		Id = "PartyTable",
+		Name = "Party Table Kick",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.14,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Radius = 12,
+		Knockback = 55,
+		RagdollTime = 1.3,
+	},
+	[4] = {
+		Id = "KickCombo",
+		Name = "Kick Combo",
+		DamagePerHit = 4,
+		Hits = 6,
+		HitInterval = 0.12,
+		Cooldown = 5,
+		DashRange = 26,
+		Range = 8,
+		FinalKnockback = 68,
+		FinalRagdoll = 1.4,
+	},
+}
+
+-- ========================================================================
+-- Sanji - Diable Jambe moveset (flaming leg; adds burn damage-over-time)
+-- ========================================================================
+local SanjiDiable = {
+	[1] = {
+		Id = "PremierHachis",
+		Name = "Diable Jambe: Premier Hachis",
+		DamagePerHit = 4,
+		Hits = 12,
+		Duration = 1.4,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Range = 18,
+		Width = 11,
+		FinalKnockback = 70,
+		FinalRagdoll = 1.7,
+		BurnDps = 3,
+		BurnTime = 3,
+	},
+	[2] = {
+		Id = "FlambageShot",
+		Name = "Diable Jambe: Flambage Shot",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.12,
+		Cooldown = 12,
+		WindUp = 0.3,
+		Radius = 15,
+		Knockback = 45,
+		LaunchPower = 82,
+		RagdollTime = 2,
+		BurnDps = 4,
+		BurnTime = 3,
+	},
+	[3] = {
+		Id = "MoutonShot",
+		Name = "Diable Jambe: Mouton Shot",
+		Damage = 44,
+		Cooldown = 15,
+		WindUp = 0.6,
+		Range = 30,
+		Width = 12,
+		Knockback = 120,
+		RagdollTime = 2.5,
+		BurnDps = 5,
+		BurnTime = 3,
+	},
+	[4] = {
+		Id = "GrillShot",
+		Name = "Bien Cuit: Grill Shot",
+		DamagePerHit = 8,
+		Hits = 6,
+		HitInterval = 0.13,
+		Cooldown = 30,
+		WindUp = 1,
+		Range = 24,
+		Width = 16,
+		FinalKnockback = 100,
+		FinalRagdoll = 3,
+		BurnDps = 6,
+		BurnTime = 4,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- Luffy reuses the top-level tables above; new characters add an entry.
@@ -365,6 +481,7 @@ local ZoroAshura = {
 Config.Movesets = {
 	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
+	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 }
 
 -- ========================================================================
@@ -870,6 +987,10 @@ local BLADE = Color3.fromRGB(220, 224, 232)
 local SLASH = Color3.fromRGB(205, 255, 232)   -- cool blade streak
 local ASHURA_RED = Color3.fromRGB(190, 34, 46)
 local ASHURA_DARK = Color3.fromRGB(24, 8, 12)
+local AIR = Color3.fromRGB(200, 228, 255)      -- Sanji air-pressure kicks
+local FIRE_ORANGE = Color3.fromRGB(255, 138, 36)
+local FIRE_YELLOW = Color3.fromRGB(255, 208, 96)
+local FIRE_DEEP = Color3.fromRGB(210, 60, 20)
 
 local VFXClient = {}
 
@@ -882,6 +1003,8 @@ local gear5Emitters = {}
 local rubberHighlights = {}
 local blockHighlights = {}
 local ashuraAuras = {} -- [character] = true while the Ashura aura loop runs
+local diableFires = {} -- [character] = { instances } for the Diable Jambe leg fire
+local igniteFires = {} -- [character] = Fire instance for burn DoT
 local baseC0 = setmetatable({}, { __mode = "k" }) -- memoized rest pose per Motor6D
 local motorCache = setmetatable({}, { __mode = "k" }) -- [character][side] = Motor6D
 
@@ -1533,6 +1656,84 @@ local function nineBladeFan(character, length, color, life)
 			Transparency = 1,
 		}, Enum.EasingStyle.Quint)
 		Debris:AddItem(blade, (life or 0.3) + 0.1)
+	end
+end
+
+-- ========================================================================
+-- Kick + fire primitives (Sanji)
+-- ========================================================================
+
+local legMotorCache = setmetatable({}, { __mode = "k" })
+
+local function getHip(character, side)
+	if not character then
+		return nil
+	end
+	local cache = legMotorCache[character]
+	if cache and cache[side] and cache[side].Parent then
+		return cache[side]
+	end
+	if not cache then
+		cache = {}
+		legMotorCache[character] = cache
+	end
+	for _, name in { side .. "Hip", side .. " Hip" } do
+		for _, d in character:GetDescendants() do
+			if d:IsA("Motor6D") and d.Name == name then
+				cache[side] = d
+				return d
+			end
+		end
+	end
+	return nil
+end
+
+-- Swing a leg forward/up (kick), layered over the idle like punchArm.
+local function kickLeg(character, side, outTime, hold, power)
+	local motor = getHip(character, side)
+	if not motor then
+		return
+	end
+	power = power or 1
+	local base = restPose(motor)
+	local posed = base * CFrame.Angles(math.rad(72 * power), 0, 0)
+	tween(motor, outTime or 0.07, { C0 = posed }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	task.delay((outTime or 0.07) + (hold or 0.05), function()
+		if motor.Parent then
+			tween(motor, 0.2, { C0 = base }, Enum.EasingStyle.Quad)
+		end
+	end)
+end
+
+-- Fiery impact (orange variant of impact + short-lived flames).
+local function flameImpact(position, scale, heavy)
+	impact(position, {
+		Color = FIRE_YELLOW,
+		Scale = scale,
+		Heavy = heavy,
+		DustColor = Color3.fromRGB(60, 40, 30),
+		CrackColor = Color3.fromRGB(60, 30, 20),
+	})
+	sparks(position, FIRE_ORANGE, math.floor(16 * (scale or 1)), 26 * (scale or 1), 1.4 * (scale or 1))
+	local holder = makePart({ Size = Vector3.new(0.2, 0.2, 0.2), CFrame = CFrame.new(position), Transparency = 1 })
+	local fire = Instance.new("Fire")
+	fire.Size = 10 * (scale or 1)
+	fire.Heat = 12
+	fire.Color = FIRE_ORANGE
+	fire.SecondaryColor = FIRE_DEEP
+	fire.Parent = holder
+	task.delay(0.15, function()
+		fire.Enabled = false
+	end)
+	Debris:AddItem(holder, 1)
+end
+
+-- Trailing flame streak (fire-colored slash used for Diable kicks).
+local function flameArc(character, angleDeg, length, forward)
+	slash(character, angleDeg, length, FIRE_YELLOW, forward, 0.16)
+	local r = root(character)
+	if r then
+		sparks(r.Position + r.CFrame.LookVector * (forward or 5) + Vector3.new(0, 1, 0), FIRE_ORANGE, 6, 16, 1)
 	end
 end
 
@@ -2214,6 +2415,244 @@ function Effects.AshuraEnd(data)
 	local r = root(data.Character)
 	if r then
 		shockwave(r.Position, 22, ASHURA_RED, 0.5, 1)
+	end
+end
+
+-- ========================================================================
+-- Sanji effect handlers
+-- ========================================================================
+
+function Effects.SanjiM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	kickLeg(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -20 or 20, 5.5, AIR, 5, 0.15)
+	if isLocal(data.Character) then
+		local r = root(data.Character)
+		fovPunch(r and r.Position or Vector3.zero, 2, 0.13)
+	end
+end
+
+function Effects.Collier(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.06, 0.12, 1.1)
+		slash(character, 90, 8, AIR, 5, 0.18) -- horizontal side kick
+		local r = root(character)
+		if r then
+			impact(r.Position + r.CFrame.LookVector * 6, { Color = AIR, Scale = 1 })
+		end
+	end)
+end
+
+function Effects.Concasse(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[2]
+	local r = root(character)
+	if not r then
+		return
+	end
+	kickLeg(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.6)
+	afterImage(character, AIR, 0.3)
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.07, 0.12, 1.2)
+		slash(character, 4, 11, AIR, 5, 0.22) -- vertical axe kick
+		local hit = r.Position + r.CFrame.LookVector * 6
+		impact(hit, { Color = AIR, Scale = 1.4, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
+	end)
+end
+
+function Effects.PartyTable(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[3]
+	speedLines(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, AIR)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 45, cfg.Radius, AIR)
+			end
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 0.9)
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.KickCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		kickLeg(character, "Right", 0.08, 0.05, 1)
+		slash(character, 22, 6, AIR, 5, 0.15)
+		return
+	end
+	afterImage(character, AIR, 0.4)
+	speedLines(character, data.Duration or 0.9, AIR)
+	task.spawn(function()
+		local n = 6
+		for i = 1, n do
+			kickLeg(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			slash(character, i % 2 == 0 and 26 or -26, 6, AIR, 4.5, 0.13)
+			task.wait(0.08)
+		end
+	end)
+end
+
+function Effects.PremierHachis(data)
+	local character = data.Character
+	speedLines(character, data.Duration or 1.4, FIRE_ORANGE)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed < (data.Duration or 1.4) do
+			kickLeg(character, side, 0.05, 0.02, 0.95)
+			flameArc(character, side == "Right" and -28 or 28, 7, 5)
+			side = side == "Right" and "Left" or "Right"
+			elapsed += task.wait(0.08)
+		end
+	end)
+end
+
+function Effects.FlambageShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[2]
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius, 20, FIRE_ORANGE)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 55, cfg.Radius, FIRE_YELLOW)
+			end
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 1)
+			local r = root(character)
+			if r then
+				sparks(r.Position + Vector3.new(0, 1, 0), FIRE_ORANGE, 8, 20, 1.4)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.MoutonShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[3]
+	local r = root(character)
+	if not r then
+		return
+	end
+	kickLeg(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.6)
+	chargeAura(function()
+		local foot = getPart(character, { "RightFoot", "RightLowerLeg", "Right Leg" })
+		return foot and foot.Position
+	end, cfg.WindUp, FIRE_ORANGE)
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.07, 0.16, 1.2)
+		flameArc(character, -16, cfg.Range * 0.5, 6)
+		flameArc(character, 12, cfg.Range * 0.45, 6)
+		local hit = r.Position + r.CFrame.LookVector * (cfg.Range * 0.5)
+		flameImpact(hit, 2.2, true)
+		shockwave(hit, 50, FIRE_ORANGE, 0.6, 1.4)
+		screenFlash(FIRE_ORANGE, 0.28, 0.25)
+		fovPunch(r.Position, 8, 0.4)
+	end)
+end
+
+function Effects.GrillShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[4]
+	local r = root(character)
+	if r then
+		groundDisc(r.Position, cfg.Range, FIRE_DEEP, 0.6)
+		screenFlash(FIRE_ORANGE, 0.3, 0.3)
+	end
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 1.1)
+			flameArc(character, hit % 2 == 0 and 22 or -22, 10, 6)
+			local rr = root(character)
+			if rr then
+				sparks(rr.Position + rr.CFrame.LookVector * 6 + Vector3.new(0, 1, 0), FIRE_ORANGE, 10, 24, 1.5)
+				shake(rr.Position, 0.4, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+		local rr = root(character)
+		if rr then
+			flameImpact(rr.Position + rr.CFrame.LookVector * 8, 2.6, true)
+		end
+	end)
+end
+
+function Effects.DiableStart(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	shockwave(r.Position, 50, FIRE_ORANGE, 0.8, 1.5)
+	groundDisc(r.Position, 46, FIRE_DEEP, 0.7)
+	sparks(r.Position, FIRE_ORANGE, 55, 45, 2)
+	shake(r.Position, 1.2, 0.5)
+	fovPunch(r.Position, 9, 0.5)
+	if isLocal(character) then
+		screenFlash(FIRE_ORANGE, 0.5, 0.5)
+	end
+
+	-- Persistent fire on both legs while Diable Jambe lasts.
+	local instances = {}
+	for _, legName in { "RightLowerLeg", "LeftLowerLeg", "Right Leg", "Left Leg", "RightFoot", "LeftFoot" } do
+		local leg = character:FindFirstChild(legName)
+		if leg then
+			local fire = Instance.new("Fire")
+			fire.Size = 5
+			fire.Heat = 8
+			fire.Color = FIRE_ORANGE
+			fire.SecondaryColor = FIRE_DEEP
+			fire.Parent = leg
+			table.insert(instances, fire)
+		end
+	end
+	diableFires[character] = instances
+end
+
+function Effects.DiableEnd(data)
+	local instances = diableFires[data.Character]
+	if instances then
+		for _, fire in instances do
+			if fire.Parent then
+				fire.Enabled = false
+				Debris:AddItem(fire, 1)
+			end
+		end
+		diableFires[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 20, FIRE_ORANGE, 0.5, 1)
+	end
+end
+
+function Effects.IgniteStart(data)
+	local character = data.Character
+	if igniteFires[character] then
+		return
+	end
+	local part = getPart(character, { "UpperTorso", "Torso", "HumanoidRootPart" })
+	if not part then
+		return
+	end
+	local fire = Instance.new("Fire")
+	fire.Size = 6
+	fire.Heat = 6
+	fire.Color = FIRE_ORANGE
+	fire.SecondaryColor = FIRE_DEEP
+	fire.Parent = part
+	igniteFires[character] = fire
+end
+
+function Effects.IgniteEnd(data)
+	local fire = igniteFires[data.Character]
+	if fire then
+		fire.Enabled = false
+		Debris:AddItem(fire, 1)
+		igniteFires[data.Character] = nil
 	end
 end
 

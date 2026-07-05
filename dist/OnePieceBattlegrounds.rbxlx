@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX14"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="ReplicatedStorage" referent="RBX15"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">--[[
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX15"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="ReplicatedStorage" referent="RBX16"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">--[[
 	Config.lua
 	Central balance / tuning data for the whole game.
 	All damage numbers, cooldowns, ranges and timings live here so the
@@ -42,8 +42,8 @@ Config.Roster = {
 		Name = "Vinsmoke Sanji",
 		Title = "Black Leg",
 		Color = Color3.fromRGB(230, 200, 70),
-		Locked = true,
-		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Locked = false,
+		Moves = { "Collier Shoot", "Concasse", "Party Table Kick", "Kick Combo" },
 		Ult = "Diable Jambe",
 	},
 	{
@@ -341,6 +341,122 @@ local ZoroAshura = {
 }
 
 -- ========================================================================
+-- Sanji - base moveset (Black Leg; mobile kick fighter)
+-- ========================================================================
+local SanjiBase = {
+	[1] = {
+		Id = "Collier",
+		Name = "Collier Shoot",
+		Damage = 15,
+		Cooldown = 5,
+		WindUp = 0.22,
+		Range = 11,
+		Width = 6,
+		Knockback = 74,
+		RagdollTime = 1.3,
+	},
+	[2] = {
+		Id = "Concasse",
+		Name = "Concasse",
+		Damage = 22,
+		Cooldown = 10,
+		WindUp = 0.42,
+		Range = 10,
+		Width = 9,
+		Knockback = 58, -- driven downward
+		RagdollTime = 2,
+	},
+	[3] = {
+		Id = "PartyTable",
+		Name = "Party Table Kick",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.14,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Radius = 12,
+		Knockback = 55,
+		RagdollTime = 1.3,
+	},
+	[4] = {
+		Id = "KickCombo",
+		Name = "Kick Combo",
+		DamagePerHit = 4,
+		Hits = 6,
+		HitInterval = 0.12,
+		Cooldown = 5,
+		DashRange = 26,
+		Range = 8,
+		FinalKnockback = 68,
+		FinalRagdoll = 1.4,
+	},
+}
+
+-- ========================================================================
+-- Sanji - Diable Jambe moveset (flaming leg; adds burn damage-over-time)
+-- ========================================================================
+local SanjiDiable = {
+	[1] = {
+		Id = "PremierHachis",
+		Name = "Diable Jambe: Premier Hachis",
+		DamagePerHit = 4,
+		Hits = 12,
+		Duration = 1.4,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Range = 18,
+		Width = 11,
+		FinalKnockback = 70,
+		FinalRagdoll = 1.7,
+		BurnDps = 3,
+		BurnTime = 3,
+	},
+	[2] = {
+		Id = "FlambageShot",
+		Name = "Diable Jambe: Flambage Shot",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.12,
+		Cooldown = 12,
+		WindUp = 0.3,
+		Radius = 15,
+		Knockback = 45,
+		LaunchPower = 82,
+		RagdollTime = 2,
+		BurnDps = 4,
+		BurnTime = 3,
+	},
+	[3] = {
+		Id = "MoutonShot",
+		Name = "Diable Jambe: Mouton Shot",
+		Damage = 44,
+		Cooldown = 15,
+		WindUp = 0.6,
+		Range = 30,
+		Width = 12,
+		Knockback = 120,
+		RagdollTime = 2.5,
+		BurnDps = 5,
+		BurnTime = 3,
+	},
+	[4] = {
+		Id = "GrillShot",
+		Name = "Bien Cuit: Grill Shot",
+		DamagePerHit = 8,
+		Hits = 6,
+		HitInterval = 0.13,
+		Cooldown = 30,
+		WindUp = 1,
+		Range = 24,
+		Width = 16,
+		FinalKnockback = 100,
+		FinalRagdoll = 3,
+		BurnDps = 6,
+		BurnTime = 4,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- Luffy reuses the top-level tables above; new characters add an entry.
@@ -348,6 +464,7 @@ local ZoroAshura = {
 Config.Movesets = {
 	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
+	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 }
 
 -- ========================================================================
@@ -432,7 +549,7 @@ function Remotes.get(name)
 end
 
 return Remotes
-</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX16"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX9"><Properties><string name="Name">Server</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX17"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX10"><Properties><string name="Name">Server</string><ProtectedString name="Source">--[[
 	init.server.lua
 	Main server entry point: player/character setup, remote handling,
 	server-side cooldown enforcement, KO leaderboard.
@@ -449,6 +566,7 @@ local Combat = require(script.CombatService)
 local MapBuilder = require(script.MapBuilder)
 local Luffy = require(script.Characters.Luffy)
 local Zoro = require(script.Characters.Zoro)
+local Sanji = require(script.Characters.Sanji)
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -470,6 +588,7 @@ MapBuilder.Build()
 local Characters = {
 	Luffy = Luffy,
 	Zoro = Zoro,
+	Sanji = Sanji,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
@@ -729,7 +848,7 @@ Players.PlayerRemoving:Connect(function(player)
 		Combat.ForgetCharacter(player.Character)
 	end
 end)
-</ProtectedString></Properties><Item class="Folder" referent="RBX6"><Properties><string name="Name">Characters</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">Luffy</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties><Item class="Folder" referent="RBX7"><Properties><string name="Name">Characters</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">Luffy</string><ProtectedString name="Source">--[[
 	Luffy.lua
 	Server-side implementation of Luffy's complete kit.
 
@@ -1183,7 +1302,469 @@ function Luffy.ForgetPlayer(player)
 end
 
 return Luffy
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5"><Properties><string name="Name">Zoro</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5"><Properties><string name="Name">Sanji</string><ProtectedString name="Source">--[[
+	Sanji.lua
+	Server-side implementation of Vinsmoke Sanji: a mobile Black Leg kick
+	fighter. His ultimate, Diable Jambe, ignites his leg and adds a burn
+	damage-over-time to every hit.
+
+	Base moveset (slots 1-4):
+		1  Collier Shoot   - fast side kick, quick poke
+		2  Concasse        - overhead axe kick, slams down (knockdown)
+		3  Party Table Kick- spinning kicks hitting everyone around
+		4  Kick Combo      - dash-in rapid kick string
+
+	Ult (G): DIABLE JAMBE for a limited time; slots become flaming kicks that
+	also apply burn:
+		1  Premier Hachis  - flaming kick barrage
+		2  Flambage Shot   - flaming spin that launches enemies up
+		3  Mouton Shot     - one huge flaming kick
+		4  Bien Cuit: Grill Shot - flaming finisher cone
+
+	Interface matches the other characters: UseSkill, M1, ActivateUlt,
+	DeactivateUlt, ForgetPlayer.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local Combat = require(script.Parent.Parent.CombatService)
+
+local VFX = Remotes.get("VFX")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+local Sanji = {}
+
+local MY = Config.Movesets.Sanji
+
+local m1State = {}
+local diableTokens = {}
+-- Burn DoT token per victim so overlapping burns refresh instead of stacking.
+local burnTokens = setmetatable({}, { __mode = "k" })
+
+-- ========================================================================
+-- Helpers
+-- ========================================================================
+
+local function faceTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		local lookAt = Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z)
+		root.CFrame = CFrame.lookAt(root.Position, lookAt)
+	end
+end
+
+local function dashToTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3.5)
+		root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
+	end
+end
+
+local function isDiable(character)
+	return character:GetAttribute("DiableJambe") == true
+end
+
+local function targetsAround(character, radius)
+	local root = Combat.Root(character)
+	if not root then
+		return {}
+	end
+	return Combat.GetTargetsInBox(root.CFrame, Vector3.new(radius * 2, 12, radius * 2), character)
+end
+
+-- Applies a burn DoT: `dps` damage per second over `duration`, refreshing.
+local function burn(player, victim, dps, duration)
+	if not dps or not Combat.IsAlive(victim) then
+		return
+	end
+	local token = (burnTokens[victim] or 0) + 1
+	burnTokens[victim] = token
+	VFX:FireAllClients("IgniteStart", { Character = victim, Duration = duration })
+
+	task.spawn(function()
+		local ticks = math.max(1, math.floor(duration / 0.5))
+		for _ = 1, ticks do
+			task.wait(0.5)
+			if burnTokens[victim] ~= token or not Combat.IsAlive(victim) then
+				break
+			end
+			-- Burn bypasses guard (it's already on you) and stays quiet.
+			Combat.DealDamage(player, victim, dps * 0.5, { SilentVFX = true, Unblockable = true })
+		end
+		if burnTokens[victim] == token and victim.Parent then
+			VFX:FireAllClients("IgniteEnd", { Character = victim })
+		end
+	end)
+end
+
+-- ========================================================================
+-- M1 combo (kicks)
+-- ========================================================================
+
+function Sanji.M1(player, character)
+	if not Combat.IsActionable(character) then
+		return
+	end
+
+	local cfg = Config.M1
+	local now = os.clock()
+	local state = m1State[player]
+	if not state then
+		state = { count = 0, lastSwing = 0, lockedUntil = 0 }
+		m1State[player] = state
+	end
+
+	if now &lt; state.lockedUntil then
+		return
+	end
+	if now - state.lastSwing &lt; cfg.SwingCooldown then
+		return
+	end
+	if now - state.lastSwing &gt; cfg.ComboResetTime then
+		state.count = 0
+	end
+
+	state.count += 1
+	state.lastSwing = now
+	local isFinisher = state.count &gt;= cfg.ComboHits
+	if isFinisher then
+		state.count = 0
+		state.lockedUntil = now + cfg.ChainCooldown
+	end
+
+	local look = Combat.FlatLook(character)
+	VFX:FireAllClients("SanjiM1", { Character = character, Index = isFinisher and cfg.ComboHits or state.count })
+
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+		if isFinisher then
+			Combat.DealDamage(player, target, cfg.Damage, {
+				KnockbackDir = look,
+				KnockbackPower = cfg.FinisherKnockback,
+				RagdollTime = cfg.FinisherRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.Damage, { StunTime = cfg.HitStun })
+		end
+	end
+end
+
+-- ========================================================================
+-- Shared move shapes (apply burn when cfg.BurnDps is present)
+-- ========================================================================
+
+local function applyBurn(player, target, cfg)
+	if cfg.BurnDps then
+		burn(player, target, cfg.BurnDps, cfg.BurnTime or 3)
+	end
+end
+
+local function dashKickCombo(player, character, cfg, effectName)
+	local target = Combat.NearestTarget(character, cfg.DashRange)
+
+	if not target then
+		Combat.SetBusy(character, 0.4)
+		VFX:FireAllClients(effectName, { Character = character, Whiff = true })
+		task.wait(0.2)
+		local look = Combat.FlatLook(character)
+		for _, hit in Combat.FrontHitbox(character, cfg.Range, 6) do
+			Combat.DealDamage(player, hit, cfg.DamagePerHit * 2, { KnockbackDir = look, KnockbackPower = 40, StunTime = 0.6 })
+		end
+		return
+	end
+
+	local totalTime = cfg.Hits * cfg.HitInterval + 0.3
+	Combat.SetBusy(character, totalTime, true)
+	dashToTarget(character, target)
+	VFX:FireAllClients(effectName, { Character = character, Target = target, Duration = totalTime })
+
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or not Combat.IsAlive(target) then
+			return
+		end
+		faceTarget(character, target)
+		local isLast = hit == cfg.Hits
+		if isLast then
+			Combat.DealDamage(player, target, cfg.DamagePerHit, {
+				KnockbackDir = Combat.FlatLook(character),
+				KnockbackPower = cfg.FinalKnockback,
+				RagdollTime = cfg.FinalRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = cfg.HitInterval * 2 })
+		end
+		applyBurn(player, target, cfg)
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+local function spinKickAoE(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Hits * cfg.HitInterval + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, Radius = cfg.Radius, Hits = cfg.Hits })
+
+	task.wait(cfg.WindUp)
+
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local root = Combat.Root(character)
+		local isLast = hit == cfg.Hits
+		for _, target in targetsAround(character, cfg.Radius) do
+			local opts = { StunTime = cfg.HitInterval * 2.5 }
+			if isLast then
+				opts.RagdollTime = cfg.RagdollTime
+				local targetRoot = Combat.Root(target)
+				local dir = root and targetRoot and (targetRoot.Position - root.Position) or Vector3.zAxis
+				opts.KnockbackDir = dir
+				opts.KnockbackPower = cfg.Knockback
+				opts.KnockbackUp = cfg.LaunchPower or cfg.Knockback * 0.4
+			end
+			Combat.DealDamage(player, target, cfg.DamagePerHit, opts)
+			applyBurn(player, target, cfg)
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+local function forwardKick(player, character, cfg, effectName, downward)
+	Combat.SetBusy(character, cfg.WindUp + 0.35, true)
+	VFX:FireAllClients(effectName, { Character = character, WindUp = cfg.WindUp, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	local look = Combat.FlatLook(character)
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = downward and 0 or cfg.Knockback * 0.3,
+			RagdollTime = cfg.RagdollTime,
+		})
+		applyBurn(player, target, cfg)
+	end
+end
+
+local function kickBarrage(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Duration + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, Duration = cfg.Duration, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+
+	local interval = cfg.Duration / cfg.Hits
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local isLast = hit == cfg.Hits
+		local look = Combat.FlatLook(character)
+		for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+			if isLast then
+				Combat.DealDamage(player, target, cfg.DamagePerHit, {
+					KnockbackDir = look,
+					KnockbackPower = cfg.FinalKnockback,
+					RagdollTime = cfg.FinalRagdoll,
+				})
+			else
+				Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = interval * 2, SilentVFX = hit % 2 == 0 })
+			end
+			applyBurn(player, target, cfg)
+		end
+		if not isLast then
+			task.wait(interval)
+		end
+	end
+end
+
+-- Forward cone multi-hit (Grill Shot finisher).
+local function coneBarrage(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Hits * cfg.HitInterval + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, WindUp = cfg.WindUp, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local isLast = hit == cfg.Hits
+		local look = Combat.FlatLook(character)
+		for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+			local opts = { StunTime = cfg.HitInterval * 2.5 }
+			if isLast then
+				opts.KnockbackDir = look
+				opts.KnockbackPower = cfg.FinalKnockback
+				opts.KnockbackUp = cfg.FinalKnockback * 0.5
+				opts.RagdollTime = cfg.FinalRagdoll
+			end
+			Combat.DealDamage(player, target, cfg.DamagePerHit, opts)
+			applyBurn(player, target, cfg)
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+-- ========================================================================
+-- Base moveset
+-- ========================================================================
+
+local function collier(player, character)
+	forwardKick(player, character, MY.Base[1], "Collier", false)
+end
+
+local function concasse(player, character)
+	forwardKick(player, character, MY.Base[2], "Concasse", true)
+end
+
+local function partyTable(player, character)
+	spinKickAoE(player, character, MY.Base[3], "PartyTable")
+end
+
+local function kickCombo(player, character)
+	dashKickCombo(player, character, MY.Base[4], "KickCombo")
+end
+
+-- ========================================================================
+-- Diable Jambe moveset
+-- ========================================================================
+
+local function premierHachis(player, character)
+	kickBarrage(player, character, MY.Ult[1], "PremierHachis")
+end
+
+local function flambageShot(player, character)
+	spinKickAoE(player, character, MY.Ult[2], "FlambageShot")
+end
+
+local function moutonShot(player, character)
+	forwardKick(player, character, MY.Ult[3], "MoutonShot", false)
+end
+
+local function grillShot(player, character)
+	coneBarrage(player, character, MY.Ult[4], "GrillShot")
+end
+
+-- ========================================================================
+-- Ult: Diable Jambe
+-- ========================================================================
+
+function Sanji.ActivateUlt(player, character)
+	if not Combat.IsActionable(character) then
+		return false
+	end
+	if isDiable(character) then
+		return false
+	end
+	local charge = player:GetAttribute("UltCharge") or 0
+	if charge &lt; Config.Ult.MaxCharge then
+		return false
+	end
+
+	player:SetAttribute("UltCharge", 0)
+	character:SetAttribute("DiableJambe", true)
+
+	local token = (diableTokens[player] or 0) + 1
+	diableTokens[player] = token
+
+	local humanoid = Combat.Humanoid(character)
+	if humanoid then
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * Config.Ult.HealPercent)
+	end
+
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed + Config.Ult.WalkSpeedBonus)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower + Config.Ult.JumpPowerBonus)
+	Combat.RefreshMovement(character)
+
+	-- Fiery orange aura, replicated to everyone.
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "DiableHighlight"
+	highlight.FillColor = Color3.fromRGB(90, 24, 8)
+	highlight.OutlineColor = Color3.fromRGB(255, 130, 40)
+	highlight.FillTransparency = 0.4
+	highlight.OutlineTransparency = 0
+	highlight.Parent = character
+
+	VFX:FireAllClients("DiableStart", { Character = character, Duration = Config.Ult.Duration })
+	HUDUpdate:FireClient(player, "UltState", true, Config.Ult.Duration)
+
+	task.delay(Config.Ult.Duration, function()
+		if diableTokens[player] == token then
+			Sanji.DeactivateUlt(player, character)
+		end
+	end)
+
+	return true
+end
+
+function Sanji.DeactivateUlt(player, character)
+	if not character or not character.Parent or not isDiable(character) then
+		return
+	end
+	character:SetAttribute("DiableJambe", false)
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
+	Combat.RefreshMovement(character)
+
+	local highlight = character:FindFirstChild("DiableHighlight")
+	if highlight then
+		highlight:Destroy()
+	end
+
+	VFX:FireAllClients("DiableEnd", { Character = character })
+	if player.Parent then
+		HUDUpdate:FireClient(player, "UltState", false)
+	end
+end
+
+-- ========================================================================
+-- Skill dispatch
+-- ========================================================================
+
+local BASE_MOVES = { collier, concasse, partyTable, kickCombo }
+local DIABLE_MOVES = { premierHachis, flambageShot, moutonShot, grillShot }
+
+function Sanji.UseSkill(player, character, slot)
+	if not Combat.IsActionable(character) then
+		return nil
+	end
+
+	local diable = isDiable(character)
+	local moveset = diable and DIABLE_MOVES or BASE_MOVES
+	local cfg = diable and MY.Ult[slot] or MY.Base[slot]
+	local move = moveset[slot]
+	if not move or not cfg then
+		return nil
+	end
+
+	local result = move(player, character)
+	if result == false then
+		return nil
+	end
+	return cfg.Cooldown
+end
+
+function Sanji.ForgetPlayer(player)
+	m1State[player] = nil
+	diableTokens[player] = nil
+end
+
+return Sanji
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6"><Properties><string name="Name">Zoro</string><ProtectedString name="Source">--[[
 	Zoro.lua
 	Server-side implementation of Roronoa Zoro's kit: a fast melee rushdown
 	fighter using Santoryu (Three-Sword Style). Procedural katanas are welded
@@ -1675,7 +2256,7 @@ function Zoro.ForgetPlayer(player)
 end
 
 return Zoro
-</ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">CombatService</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">CombatService</string><ProtectedString name="Source">--[[
 	CombatService.lua
 	Server-authoritative combat primitives shared by every character:
 	hitboxes, damage, ult charge, stun / ragdoll / paralysis, knockback.
@@ -2089,7 +2670,7 @@ function Combat.ForgetCharacter(character)
 end
 
 return Combat
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--[[
 	MapBuilder.lua
 	Generates the whole arena in code at server startup (the Rojo project
 	ships no place geometry).
@@ -3183,7 +3764,7 @@ function MapBuilder.Build()
 end
 
 return MapBuilder
-</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX18"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX17"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX13"><Properties><string name="Name">Client</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX19"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX18"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX14"><Properties><string name="Name">Client</string><ProtectedString name="Source">--[[
 	init.client.lua
 	Client entry point: input handling + HUD/VFX bootstrapping.
 
@@ -3295,7 +3876,7 @@ HUDUpdate.OnClientEvent:Connect(function(kind, ...)
 		HUD.SetDashCooldown(...)
 	end
 end)
-</ProtectedString></Properties><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">CharacterSelect</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">CharacterSelect</string><ProtectedString name="Source">--[[
 	CharacterSelect.lua
 	A topbar button (sitting beside the core chat button) that opens a
 	character-select menu built from Config.Roster. Selecting an unlocked
@@ -3650,7 +4231,7 @@ function CharacterSelect.Init()
 end
 
 return CharacterSelect
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">HUD</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">HUD</string><ProtectedString name="Source">--[[
 	HUD.lua
 	Builds the combat HUD entirely in code:
 	  - 4 skill slots (keys 1-4) with name, keybind and cooldown sweep
@@ -4015,7 +4596,7 @@ function HUD.SetUltState(active, duration)
 end
 
 return HUD
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">VFXClient</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">VFXClient</string><ProtectedString name="Source">--[[
 	VFXClient.lua
 	High-end procedural combat visuals + procedural character animation.
 
@@ -4058,6 +4639,10 @@ local BLADE = Color3.fromRGB(220, 224, 232)
 local SLASH = Color3.fromRGB(205, 255, 232)   -- cool blade streak
 local ASHURA_RED = Color3.fromRGB(190, 34, 46)
 local ASHURA_DARK = Color3.fromRGB(24, 8, 12)
+local AIR = Color3.fromRGB(200, 228, 255)      -- Sanji air-pressure kicks
+local FIRE_ORANGE = Color3.fromRGB(255, 138, 36)
+local FIRE_YELLOW = Color3.fromRGB(255, 208, 96)
+local FIRE_DEEP = Color3.fromRGB(210, 60, 20)
 
 local VFXClient = {}
 
@@ -4070,6 +4655,8 @@ local gear5Emitters = {}
 local rubberHighlights = {}
 local blockHighlights = {}
 local ashuraAuras = {} -- [character] = true while the Ashura aura loop runs
+local diableFires = {} -- [character] = { instances } for the Diable Jambe leg fire
+local igniteFires = {} -- [character] = Fire instance for burn DoT
 local baseC0 = setmetatable({}, { __mode = "k" }) -- memoized rest pose per Motor6D
 local motorCache = setmetatable({}, { __mode = "k" }) -- [character][side] = Motor6D
 
@@ -4721,6 +5308,84 @@ local function nineBladeFan(character, length, color, life)
 			Transparency = 1,
 		}, Enum.EasingStyle.Quint)
 		Debris:AddItem(blade, (life or 0.3) + 0.1)
+	end
+end
+
+-- ========================================================================
+-- Kick + fire primitives (Sanji)
+-- ========================================================================
+
+local legMotorCache = setmetatable({}, { __mode = "k" })
+
+local function getHip(character, side)
+	if not character then
+		return nil
+	end
+	local cache = legMotorCache[character]
+	if cache and cache[side] and cache[side].Parent then
+		return cache[side]
+	end
+	if not cache then
+		cache = {}
+		legMotorCache[character] = cache
+	end
+	for _, name in { side .. "Hip", side .. " Hip" } do
+		for _, d in character:GetDescendants() do
+			if d:IsA("Motor6D") and d.Name == name then
+				cache[side] = d
+				return d
+			end
+		end
+	end
+	return nil
+end
+
+-- Swing a leg forward/up (kick), layered over the idle like punchArm.
+local function kickLeg(character, side, outTime, hold, power)
+	local motor = getHip(character, side)
+	if not motor then
+		return
+	end
+	power = power or 1
+	local base = restPose(motor)
+	local posed = base * CFrame.Angles(math.rad(72 * power), 0, 0)
+	tween(motor, outTime or 0.07, { C0 = posed }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	task.delay((outTime or 0.07) + (hold or 0.05), function()
+		if motor.Parent then
+			tween(motor, 0.2, { C0 = base }, Enum.EasingStyle.Quad)
+		end
+	end)
+end
+
+-- Fiery impact (orange variant of impact + short-lived flames).
+local function flameImpact(position, scale, heavy)
+	impact(position, {
+		Color = FIRE_YELLOW,
+		Scale = scale,
+		Heavy = heavy,
+		DustColor = Color3.fromRGB(60, 40, 30),
+		CrackColor = Color3.fromRGB(60, 30, 20),
+	})
+	sparks(position, FIRE_ORANGE, math.floor(16 * (scale or 1)), 26 * (scale or 1), 1.4 * (scale or 1))
+	local holder = makePart({ Size = Vector3.new(0.2, 0.2, 0.2), CFrame = CFrame.new(position), Transparency = 1 })
+	local fire = Instance.new("Fire")
+	fire.Size = 10 * (scale or 1)
+	fire.Heat = 12
+	fire.Color = FIRE_ORANGE
+	fire.SecondaryColor = FIRE_DEEP
+	fire.Parent = holder
+	task.delay(0.15, function()
+		fire.Enabled = false
+	end)
+	Debris:AddItem(holder, 1)
+end
+
+-- Trailing flame streak (fire-colored slash used for Diable kicks).
+local function flameArc(character, angleDeg, length, forward)
+	slash(character, angleDeg, length, FIRE_YELLOW, forward, 0.16)
+	local r = root(character)
+	if r then
+		sparks(r.Position + r.CFrame.LookVector * (forward or 5) + Vector3.new(0, 1, 0), FIRE_ORANGE, 6, 16, 1)
 	end
 end
 
@@ -5402,6 +6067,244 @@ function Effects.AshuraEnd(data)
 	local r = root(data.Character)
 	if r then
 		shockwave(r.Position, 22, ASHURA_RED, 0.5, 1)
+	end
+end
+
+-- ========================================================================
+-- Sanji effect handlers
+-- ========================================================================
+
+function Effects.SanjiM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	kickLeg(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -20 or 20, 5.5, AIR, 5, 0.15)
+	if isLocal(data.Character) then
+		local r = root(data.Character)
+		fovPunch(r and r.Position or Vector3.zero, 2, 0.13)
+	end
+end
+
+function Effects.Collier(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.06, 0.12, 1.1)
+		slash(character, 90, 8, AIR, 5, 0.18) -- horizontal side kick
+		local r = root(character)
+		if r then
+			impact(r.Position + r.CFrame.LookVector * 6, { Color = AIR, Scale = 1 })
+		end
+	end)
+end
+
+function Effects.Concasse(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[2]
+	local r = root(character)
+	if not r then
+		return
+	end
+	kickLeg(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.6)
+	afterImage(character, AIR, 0.3)
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.07, 0.12, 1.2)
+		slash(character, 4, 11, AIR, 5, 0.22) -- vertical axe kick
+		local hit = r.Position + r.CFrame.LookVector * 6
+		impact(hit, { Color = AIR, Scale = 1.4, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
+	end)
+end
+
+function Effects.PartyTable(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Base[3]
+	speedLines(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, AIR)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 45, cfg.Radius, AIR)
+			end
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 0.9)
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.KickCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		kickLeg(character, "Right", 0.08, 0.05, 1)
+		slash(character, 22, 6, AIR, 5, 0.15)
+		return
+	end
+	afterImage(character, AIR, 0.4)
+	speedLines(character, data.Duration or 0.9, AIR)
+	task.spawn(function()
+		local n = 6
+		for i = 1, n do
+			kickLeg(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			slash(character, i % 2 == 0 and 26 or -26, 6, AIR, 4.5, 0.13)
+			task.wait(0.08)
+		end
+	end)
+end
+
+function Effects.PremierHachis(data)
+	local character = data.Character
+	speedLines(character, data.Duration or 1.4, FIRE_ORANGE)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed &lt; (data.Duration or 1.4) do
+			kickLeg(character, side, 0.05, 0.02, 0.95)
+			flameArc(character, side == "Right" and -28 or 28, 7, 5)
+			side = side == "Right" and "Left" or "Right"
+			elapsed += task.wait(0.08)
+		end
+	end)
+end
+
+function Effects.FlambageShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[2]
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius, 20, FIRE_ORANGE)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 55, cfg.Radius, FIRE_YELLOW)
+			end
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 1)
+			local r = root(character)
+			if r then
+				sparks(r.Position + Vector3.new(0, 1, 0), FIRE_ORANGE, 8, 20, 1.4)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.MoutonShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[3]
+	local r = root(character)
+	if not r then
+		return
+	end
+	kickLeg(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.6)
+	chargeAura(function()
+		local foot = getPart(character, { "RightFoot", "RightLowerLeg", "Right Leg" })
+		return foot and foot.Position
+	end, cfg.WindUp, FIRE_ORANGE)
+	task.delay(cfg.WindUp - 0.05, function()
+		kickLeg(character, "Right", 0.07, 0.16, 1.2)
+		flameArc(character, -16, cfg.Range * 0.5, 6)
+		flameArc(character, 12, cfg.Range * 0.45, 6)
+		local hit = r.Position + r.CFrame.LookVector * (cfg.Range * 0.5)
+		flameImpact(hit, 2.2, true)
+		shockwave(hit, 50, FIRE_ORANGE, 0.6, 1.4)
+		screenFlash(FIRE_ORANGE, 0.28, 0.25)
+		fovPunch(r.Position, 8, 0.4)
+	end)
+end
+
+function Effects.GrillShot(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Sanji.Ult[4]
+	local r = root(character)
+	if r then
+		groundDisc(r.Position, cfg.Range, FIRE_DEEP, 0.6)
+		screenFlash(FIRE_ORANGE, 0.3, 0.3)
+	end
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			kickLeg(character, hit % 2 == 0 and "Left" or "Right", 0.05, 0.03, 1.1)
+			flameArc(character, hit % 2 == 0 and 22 or -22, 10, 6)
+			local rr = root(character)
+			if rr then
+				sparks(rr.Position + rr.CFrame.LookVector * 6 + Vector3.new(0, 1, 0), FIRE_ORANGE, 10, 24, 1.5)
+				shake(rr.Position, 0.4, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+		local rr = root(character)
+		if rr then
+			flameImpact(rr.Position + rr.CFrame.LookVector * 8, 2.6, true)
+		end
+	end)
+end
+
+function Effects.DiableStart(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	shockwave(r.Position, 50, FIRE_ORANGE, 0.8, 1.5)
+	groundDisc(r.Position, 46, FIRE_DEEP, 0.7)
+	sparks(r.Position, FIRE_ORANGE, 55, 45, 2)
+	shake(r.Position, 1.2, 0.5)
+	fovPunch(r.Position, 9, 0.5)
+	if isLocal(character) then
+		screenFlash(FIRE_ORANGE, 0.5, 0.5)
+	end
+
+	-- Persistent fire on both legs while Diable Jambe lasts.
+	local instances = {}
+	for _, legName in { "RightLowerLeg", "LeftLowerLeg", "Right Leg", "Left Leg", "RightFoot", "LeftFoot" } do
+		local leg = character:FindFirstChild(legName)
+		if leg then
+			local fire = Instance.new("Fire")
+			fire.Size = 5
+			fire.Heat = 8
+			fire.Color = FIRE_ORANGE
+			fire.SecondaryColor = FIRE_DEEP
+			fire.Parent = leg
+			table.insert(instances, fire)
+		end
+	end
+	diableFires[character] = instances
+end
+
+function Effects.DiableEnd(data)
+	local instances = diableFires[data.Character]
+	if instances then
+		for _, fire in instances do
+			if fire.Parent then
+				fire.Enabled = false
+				Debris:AddItem(fire, 1)
+			end
+		end
+		diableFires[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 20, FIRE_ORANGE, 0.5, 1)
+	end
+end
+
+function Effects.IgniteStart(data)
+	local character = data.Character
+	if igniteFires[character] then
+		return
+	end
+	local part = getPart(character, { "UpperTorso", "Torso", "HumanoidRootPart" })
+	if not part then
+		return
+	end
+	local fire = Instance.new("Fire")
+	fire.Size = 6
+	fire.Heat = 6
+	fire.Color = FIRE_ORANGE
+	fire.SecondaryColor = FIRE_DEEP
+	fire.Parent = part
+	igniteFires[character] = fire
+end
+
+function Effects.IgniteEnd(data)
+	local fire = igniteFires[data.Character]
+	if fire then
+		fire.Enabled = false
+		Debris:AddItem(fire, 1)
+		igniteFires[data.Character] = nil
 	end
 end
 

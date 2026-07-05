@@ -42,8 +42,8 @@ Config.Roster = {
 		Name = "Vinsmoke Sanji",
 		Title = "Black Leg",
 		Color = Color3.fromRGB(230, 200, 70),
-		Locked = true,
-		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Locked = false,
+		Moves = { "Collier Shoot", "Concasse", "Party Table Kick", "Kick Combo" },
 		Ult = "Diable Jambe",
 	},
 	{
@@ -341,6 +341,122 @@ local ZoroAshura = {
 }
 
 -- ========================================================================
+-- Sanji - base moveset (Black Leg; mobile kick fighter)
+-- ========================================================================
+local SanjiBase = {
+	[1] = {
+		Id = "Collier",
+		Name = "Collier Shoot",
+		Damage = 15,
+		Cooldown = 5,
+		WindUp = 0.22,
+		Range = 11,
+		Width = 6,
+		Knockback = 74,
+		RagdollTime = 1.3,
+	},
+	[2] = {
+		Id = "Concasse",
+		Name = "Concasse",
+		Damage = 22,
+		Cooldown = 10,
+		WindUp = 0.42,
+		Range = 10,
+		Width = 9,
+		Knockback = 58, -- driven downward
+		RagdollTime = 2,
+	},
+	[3] = {
+		Id = "PartyTable",
+		Name = "Party Table Kick",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.14,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Radius = 12,
+		Knockback = 55,
+		RagdollTime = 1.3,
+	},
+	[4] = {
+		Id = "KickCombo",
+		Name = "Kick Combo",
+		DamagePerHit = 4,
+		Hits = 6,
+		HitInterval = 0.12,
+		Cooldown = 5,
+		DashRange = 26,
+		Range = 8,
+		FinalKnockback = 68,
+		FinalRagdoll = 1.4,
+	},
+}
+
+-- ========================================================================
+-- Sanji - Diable Jambe moveset (flaming leg; adds burn damage-over-time)
+-- ========================================================================
+local SanjiDiable = {
+	[1] = {
+		Id = "PremierHachis",
+		Name = "Diable Jambe: Premier Hachis",
+		DamagePerHit = 4,
+		Hits = 12,
+		Duration = 1.4,
+		Cooldown = 11,
+		WindUp = 0.2,
+		Range = 18,
+		Width = 11,
+		FinalKnockback = 70,
+		FinalRagdoll = 1.7,
+		BurnDps = 3,
+		BurnTime = 3,
+	},
+	[2] = {
+		Id = "FlambageShot",
+		Name = "Diable Jambe: Flambage Shot",
+		DamagePerHit = 6,
+		Hits = 4,
+		HitInterval = 0.12,
+		Cooldown = 12,
+		WindUp = 0.3,
+		Radius = 15,
+		Knockback = 45,
+		LaunchPower = 82,
+		RagdollTime = 2,
+		BurnDps = 4,
+		BurnTime = 3,
+	},
+	[3] = {
+		Id = "MoutonShot",
+		Name = "Diable Jambe: Mouton Shot",
+		Damage = 44,
+		Cooldown = 15,
+		WindUp = 0.6,
+		Range = 30,
+		Width = 12,
+		Knockback = 120,
+		RagdollTime = 2.5,
+		BurnDps = 5,
+		BurnTime = 3,
+	},
+	[4] = {
+		Id = "GrillShot",
+		Name = "Bien Cuit: Grill Shot",
+		DamagePerHit = 8,
+		Hits = 6,
+		HitInterval = 0.13,
+		Cooldown = 30,
+		WindUp = 1,
+		Range = 24,
+		Width = 16,
+		FinalKnockback = 100,
+		FinalRagdoll = 3,
+		BurnDps = 6,
+		BurnTime = 4,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- Luffy reuses the top-level tables above; new characters add an entry.
@@ -348,6 +464,7 @@ local ZoroAshura = {
 Config.Movesets = {
 	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
+	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 }
 
 -- ========================================================================

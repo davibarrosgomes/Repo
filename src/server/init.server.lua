@@ -15,6 +15,7 @@ local Combat = require(script.CombatService)
 local MapBuilder = require(script.MapBuilder)
 local Luffy = require(script.Characters.Luffy)
 local Zoro = require(script.Characters.Zoro)
+local Sanji = require(script.Characters.Sanji)
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -36,6 +37,7 @@ MapBuilder.Build()
 local Characters = {
 	Luffy = Luffy,
 	Zoro = Zoro,
+	Sanji = Sanji,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
