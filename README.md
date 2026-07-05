@@ -4,6 +4,21 @@ A *The Strongest Battlegrounds*-style Roblox fighting game inspired by **One Pie
 First playable character: **Luffy**, with a full base moveset and a **Gear 5**
 ultimate transformation that replaces all four skills.
 
+## Quick install (just 2 copy-pastes)
+
+No Rojo, no folders, no ModuleScripts. Everything is bundled into two flat
+scripts in [`dist/`](dist):
+
+1. In **ServerScriptService**, insert a **Script** and paste all of
+   [`dist/ServerScript.lua`](dist/ServerScript.lua) into it.
+2. In **StarterPlayer → StarterPlayerScripts**, insert a **LocalScript** and
+   paste all of [`dist/ClientScript.lua`](dist/ClientScript.lua) into it.
+3. Delete the default **Baseplate** and **SpawnLocation** from Workspace
+   (the game builds its own island), then press **Play**.
+
+That's the whole setup. The `src/` tree below is the same code split into
+proper modules for editing/Rojo; `dist/` is generated from it.
+
 ## Controls
 
 | Input | Action |
