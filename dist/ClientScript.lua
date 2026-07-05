@@ -1757,6 +1757,7 @@ local CharacterSelect = (function()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 
 
 local LocalPlayer = Players.LocalPlayer
@@ -1969,10 +1970,10 @@ function CharacterSelect.Init()
 	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 	-- Topbar button, sitting just right of the core chat button.
+	local BUTTON_SIZE = 32
 	topButton = Instance.new("TextButton")
 	topButton.Name = "CharacterButton"
-	topButton.Position = UDim2.fromOffset(92, 2)
-	topButton.Size = UDim2.fromOffset(32, 32)
+	topButton.Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE)
 	topButton.Font = Enum.Font.GothamBlack
 	topButton.TextSize = 18
 	topButton.TextColor3 = Color3.new(1, 1, 1)
@@ -1999,6 +2000,22 @@ function CharacterSelect.Init()
 	tip.TextStrokeTransparency = 0.5
 	tip.Text = "CHARACTER"
 	tip.Parent = topButton
+
+	-- Place the button just right of the core topbar buttons (menu + chat).
+	-- GuiService.TopbarInset reports the region NOT covered by Roblox's own
+	-- topbar, so TopbarInset.Min.X is exactly where our safe area begins.
+	local function positionButton()
+		local inset = GuiService.TopbarInset
+		if inset and inset.Width > 0 and inset.Min.X > 0 then
+			local y = inset.Min.Y + (inset.Height - BUTTON_SIZE) / 2
+			topButton.Position = UDim2.fromOffset(inset.Min.X + 8, math.max(2, y))
+		else
+			-- Fallback for clients without a reported inset.
+			topButton.Position = UDim2.fromOffset(176, 4)
+		end
+	end
+	positionButton()
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(positionButton)
 
 	-- Modal backdrop.
 	backdrop = Instance.new("TextButton")
