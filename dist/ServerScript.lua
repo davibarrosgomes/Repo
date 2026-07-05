@@ -328,7 +328,18 @@ else
 end
 
 function Remotes.get(name)
-	return folder:WaitForChild(name)
+	-- Time out instead of yielding forever, so a stale/mismatched Remotes
+	-- module surfaces as a clear error instead of a silent hang (which would
+	-- stall the map build on the server and the UI on the client).
+	local remote = folder:WaitForChild(name, 10)
+	if not remote then
+		error(
+			("Remotes.get: RemoteEvent %q was not found. Make sure the Remotes "
+				.. "module is updated to the latest version on BOTH server and client."):format(name),
+			2
+		)
+	end
+	return remote
 end
 
 return Remotes
