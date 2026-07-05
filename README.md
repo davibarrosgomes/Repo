@@ -1,8 +1,13 @@
 # One Piece Battlegrounds
 
 A *The Strongest Battlegrounds*-style Roblox fighting game inspired by **One Piece**.
-First playable character: **Luffy**, with a full base moveset and a **Gear 5**
-ultimate transformation that replaces all four skills.
+Playable characters (pick via the topbar character button):
+
+- **Monkey D. Luffy** — ranged rubber attacks + a **Gear 5** ultimate
+- **Roronoa Zoro** — fast three-sword rushdown + an **Ashura** ultimate
+
+Each character has a full 4-slot base moveset and an ultimate transformation
+that replaces all four skills.
 
 ## Quick install (just 2 copy-pastes)
 

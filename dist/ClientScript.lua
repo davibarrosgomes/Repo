@@ -50,7 +50,7 @@ Config.Roster = {
 		Name = "Roronoa Zoro",
 		Title = "Santoryu",
 		Color = Color3.fromRGB(60, 150, 90),
-		Locked = true,
+		Locked = false,
 		Moves = { "Oni Giri", "Tora Gari", "Ul-Tora Gari", "Sword Combo" },
 		Ult = "Ashura",
 	},
@@ -249,6 +249,125 @@ Config.Ult = {
 }
 
 -- ========================================================================
+-- Zoro - base moveset (fast rushdown, Three-Sword Style)
+-- ========================================================================
+local ZoroBase = {
+	[1] = {
+		Id = "OniGiri",
+		Name = "Oni Giri",
+		DamagePerHit = 6,
+		Hits = 3,
+		HitInterval = 0.11,
+		Cooldown = 6,
+		DashRange = 30,
+		Range = 9,
+		FinalKnockback = 62,
+		FinalRagdoll = 1.2,
+	},
+	[2] = {
+		Id = "ToraGari",
+		Name = "Tora Gari",
+		Damage = 20,
+		Cooldown = 9,
+		WindUp = 0.32,
+		Range = 12,
+		Width = 8,
+		Knockback = 70,
+		RagdollTime = 1.9,
+	},
+	[3] = {
+		Id = "UlToraGari",
+		Name = "Ul-Tora Gari",
+		DamagePerHit = 7,
+		Hits = 3,
+		HitInterval = 0.16,
+		Cooldown = 11,
+		WindUp = 0.25,
+		Radius = 13,
+		Knockback = 55,
+		RagdollTime = 1.3,
+	},
+	[4] = {
+		Id = "SwordCombo",
+		Name = "Sword Combo",
+		DamagePerHit = 4,
+		Hits = 5,
+		HitInterval = 0.13,
+		Cooldown = 5,
+		DashRange = 24,
+		Range = 8,
+		FinalKnockback = 66,
+		FinalRagdoll = 1.4,
+	},
+}
+
+-- ========================================================================
+-- Zoro - Ashura moveset (Nine-Sword Style, while the ult is active)
+-- ========================================================================
+local ZoroAshura = {
+	[1] = {
+		Id = "Ichibugin",
+		Name = "Ashura: Ichibugin",
+		Damage = 46,
+		Cooldown = 16,
+		WindUp = 0.7,
+		Range = 42,
+		Width = 18,
+		Knockback = 120,
+		RagdollTime = 2.6,
+	},
+	[2] = {
+		Id = "Makyusen",
+		Name = "Makyusen",
+		DamagePerHit = 4,
+		Hits = 12,
+		Duration = 1.4,
+		Cooldown = 11,
+		WindUp = 0.22,
+		Range = 20,
+		Width = 12,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.8,
+	},
+	[3] = {
+		Id = "Tatsumaki",
+		Name = "Tatsumaki",
+		DamagePerHit = 5,
+		Hits = 5,
+		HitInterval = 0.12,
+		Cooldown = 12,
+		WindUp = 0.35,
+		Radius = 16,
+		Knockback = 40,
+		LaunchPower = 85, -- upward launch
+		RagdollTime = 2,
+	},
+	[4] = {
+		Id = "KokujoOTatsumaki",
+		Name = "Kokujo: O Tatsumaki",
+		DamagePerHit = 8,
+		Hits = 8,
+		HitInterval = 0.16,
+		Cooldown = 30,
+		WindUp = 1.1,
+		Radius = 24,
+		Knockback = 60,
+		LaunchPower = 110,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
+-- Per-character moveset registry (consumed by character modules + HUD).
+-- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
+-- Luffy reuses the top-level tables above; new characters add an entry.
+-- ========================================================================
+Config.Movesets = {
+	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
+	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
+}
+
+-- ========================================================================
 -- Assets. Replace the zeros with your own uploaded asset ids.
 -- Every consumer of this table safely skips ids that are 0.
 -- ========================================================================
@@ -358,8 +477,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local BG = Color3.fromRGB(25, 25, 30)
-local ACCENT_BASE = Color3.fromRGB(220, 60, 60)   -- straw hat red
-local ACCENT_GEAR5 = Color3.fromRGB(255, 255, 255)
+local ACCENT_ULT = Color3.fromRGB(255, 255, 255)
 local ULT_COLOR = Color3.fromRGB(255, 200, 60)
 
 local BLOCK_COLOR = Color3.fromRGB(180, 210, 255)
@@ -378,16 +496,34 @@ local function corner(instance, radius)
 	c.Parent = instance
 end
 
+-- Resolves the selected character's moveset + roster entry (for names/colors).
+local function moveset()
+	local id = LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+	return Config.Movesets[id] or Config.Movesets.Luffy
+end
+
+local function accentColor()
+	local id = LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+	for _, entry in Config.Roster do
+		if entry.Id == id then
+			return entry.Color
+		end
+	end
+	return Color3.fromRGB(220, 60, 60)
+end
+
 local function slotName(slot)
-	local cfg = gear5Active and Config.Gear5[slot] or Config.Base[slot]
+	local ms = moveset()
+	local cfg = gear5Active and ms.Ult[slot] or ms.Base[slot]
 	return cfg and cfg.Name or "?"
 end
 
 local function refreshSlotNames()
+	local accent = gear5Active and ACCENT_ULT or accentColor()
 	for slot, ui in slots do
 		ui.nameLabel.Text = slotName(slot)
-		ui.keyLabel.TextColor3 = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
-		ui.stroke.Color = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
+		ui.keyLabel.TextColor3 = accent
+		ui.stroke.Color = accent
 	end
 end
 
@@ -428,7 +564,7 @@ function HUD.Init()
 		corner(frame, 10)
 
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = ACCENT_BASE
+		stroke.Color = accentColor()
 		stroke.Thickness = 1.5
 		stroke.Transparency = 0.3
 		stroke.Parent = frame
@@ -439,7 +575,7 @@ function HUD.Init()
 		keyLabel.Size = UDim2.new(0, 24, 0, 24)
 		keyLabel.Font = Enum.Font.GothamBlack
 		keyLabel.TextSize = 20
-		keyLabel.TextColor3 = ACCENT_BASE
+		keyLabel.TextColor3 = accentColor()
 		keyLabel.Text = tostring(slot)
 		keyLabel.TextXAlignment = Enum.TextXAlignment.Left
 		keyLabel.Parent = frame
@@ -595,6 +731,13 @@ function HUD.Init()
 	end
 	LocalPlayer:GetAttributeChangedSignal("UltCharge"):Connect(onCharge)
 	onCharge()
+
+	-- Switching character swaps the whole moveset display.
+	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(function()
+		gear5Active = false
+		refreshSlotNames()
+		onCharge()
+	end)
 end
 
 -- ========================================================================
@@ -648,12 +791,13 @@ function HUD.ClearCooldowns()
 end
 
 function HUD.SetUltCharge(charge)
+	local ultName = moveset().UltName or "ULT"
 	local ratio = math.clamp(charge / Config.Ult.MaxCharge, 0, 1)
 	TweenService:Create(ultFill, TweenInfo.new(0.2), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
 	if gear5Active then
-		ultLabel.Text = "GEAR 5"
+		ultLabel.Text = ultName:upper()
 	elseif ratio >= 1 then
-		ultLabel.Text = "GEAR 5 READY - PRESS G"
+		ultLabel.Text = ("%s READY - PRESS G"):format(ultName:upper())
 		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
 	else
 		ultLabel.Text = ("ULT %d%%"):format(math.floor(ratio * 100))
@@ -667,7 +811,7 @@ function HUD.SetUltState(active, duration)
 	HUD.ClearCooldowns()
 
 	if active then
-		ultLabel.Text = "GEAR 5"
+		ultLabel.Text = (moveset().UltName or "ULT"):upper()
 		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
 		ultFill.Size = UDim2.new(1, 0, 1, 0)
 		-- Drain the bar over the ult duration as a timer.
@@ -722,6 +866,10 @@ local GEAR5_RIM = Color3.fromRGB(255, 220, 240)
 local TOON = Color3.fromRGB(255, 130, 200)
 local GOLD = Color3.fromRGB(255, 225, 150)
 local IMPACT_YELLOW = Color3.fromRGB(255, 240, 150)
+local BLADE = Color3.fromRGB(220, 224, 232)
+local SLASH = Color3.fromRGB(205, 255, 232)   -- cool blade streak
+local ASHURA_RED = Color3.fromRGB(190, 34, 46)
+local ASHURA_DARK = Color3.fromRGB(24, 8, 12)
 
 local VFXClient = {}
 
@@ -733,6 +881,7 @@ effectsFolder.Parent = workspace
 local gear5Emitters = {}
 local rubberHighlights = {}
 local blockHighlights = {}
+local ashuraAuras = {} -- [character] = true while the Ashura aura loop runs
 local baseC0 = setmetatable({}, { __mode = "k" }) -- memoized rest pose per Motor6D
 local motorCache = setmetatable({}, { __mode = "k" }) -- [character][side] = Motor6D
 
@@ -1286,6 +1435,108 @@ local function fistFlurry(character, duration, range, color, haki, size, perSeco
 end
 
 -- ========================================================================
+-- Sword primitives (Zoro)
+-- ========================================================================
+
+-- A bright blade streak in front of the character. `angleDeg` is the roll of
+-- the slash; it sweeps ~45 degrees and fades. Returns the world hit point.
+local function slash(character, angleDeg, length, color, forward, life)
+	local r = root(character)
+	if not r then
+		return nil
+	end
+	forward = forward or 5
+	local base = r.CFrame * CFrame.new(0, 1.2, -forward)
+	local blade = makePart({
+		Size = Vector3.new(0.22, length, 1.1),
+		CFrame = base * CFrame.Angles(0, 0, math.rad(angleDeg)),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.05,
+	})
+	addTrail(blade, color, 0.14, length * 0.45)
+	tween(blade, life or 0.16, {
+		CFrame = base * CFrame.Angles(0, 0, math.rad(angleDeg + 46)),
+		Size = Vector3.new(0.22, length * 1.12, 1.1),
+		Transparency = 1,
+	}, Enum.EasingStyle.Quint)
+	Debris:AddItem(blade, (life or 0.16) + 0.05)
+	return base.Position
+end
+
+-- Horizontal arc slash sweeping around the character (spins).
+local function arcSlash(character, startAngle, radius, color)
+	local r = root(character)
+	if not r then
+		return
+	end
+	local arc = makePart({
+		Size = Vector3.new(radius * 2, 0.25, 1.4),
+		CFrame = r.CFrame * CFrame.new(0, 1, 0) * CFrame.Angles(0, math.rad(startAngle), 0) * CFrame.new(0, 0, -radius),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.15,
+	})
+	tween(arc, 0.2, { Transparency = 1, Size = Vector3.new(radius * 2.2, 0.25, 1.4) })
+	Debris:AddItem(arc, 0.25)
+end
+
+-- A swirling tornado column of blade shards + rising particles.
+local function tornado(character, duration, radius, height, color)
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed < duration do
+			local r = root(character)
+			if not r then
+				break
+			end
+			for _ = 1, 2 do
+				local a = math.rad(math.random(0, 359))
+				local h = math.random() * height
+				local rad = radius * (0.35 + (h / height) * 0.75)
+				local shard = makePart({
+					Size = Vector3.new(0.35, 3, 0.35),
+					CFrame = r.CFrame * CFrame.new(math.cos(a) * rad, h, math.sin(a) * rad) * CFrame.Angles(0, a, math.rad(24)),
+					Color = color,
+					Transparency = 0.15,
+				})
+				tween(shard, 0.28, { Transparency = 1 })
+				Debris:AddItem(shard, 0.32)
+			end
+			elapsed += task.wait(0.02)
+		end
+	end)
+	local r = root(character)
+	if r then
+		dust(r.Position, color, 12)
+		shake(r.Position, 0.5, duration)
+	end
+end
+
+-- Nine phantom blades fanned out in front (Ashura signature).
+local function nineBladeFan(character, length, color, life)
+	local r = root(character)
+	if not r then
+		return
+	end
+	for i = -4, 4 do
+		local blade = makePart({
+			Size = Vector3.new(0.28, length, 0.9),
+			CFrame = r.CFrame * CFrame.new(i * 1.6, 1.5, -5) * CFrame.Angles(0, 0, math.rad(i * 9)),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Transparency = 0.1,
+		})
+		addTrail(blade, color, 0.18, length * 0.4)
+		tween(blade, life or 0.3, {
+			CFrame = r.CFrame * CFrame.new(i * 2.2, 1.5, -(5 + length)) * CFrame.Angles(0, 0, math.rad(i * 9)),
+			Transparency = 1,
+		}, Enum.EasingStyle.Quint)
+		Debris:AddItem(blade, (life or 0.3) + 0.1)
+	end
+end
+
+-- ========================================================================
 -- Effect handlers
 -- ========================================================================
 
@@ -1723,6 +1974,247 @@ end
 function Effects.GuardBreak(data)
 	impact(data.Position, { Color = Color3.fromRGB(255, 90, 90), Scale = 1.3, Heavy = true })
 	playSound(Config.Sounds.HeavyImpact, workspace, 1.2)
+end
+
+-- ========================================================================
+-- Zoro effect handlers
+-- ========================================================================
+
+function Effects.ZoroM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	punchArm(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -32 or 32, 6, SLASH, 5, 0.16)
+	if isLocal(data.Character) then
+		local r = root(data.Character)
+		fovPunch(r and r.Position or Vector3.zero, 2, 0.14)
+	end
+end
+
+function Effects.OniGiri(data)
+	local character = data.Character
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		slash(character, -40, 7, SLASH, 5, 0.18)
+		return
+	end
+	afterImage(character, SLASH, 0.4)
+	-- Three-sword cross: two diagonals + a horizontal, staggered.
+	slash(character, -45, 8, SLASH, 4, 0.2)
+	task.delay(0.05, function()
+		slash(character, 45, 8, SLASH, 4, 0.2)
+	end)
+	task.delay(0.1, function()
+		slash(character, 90, 8, BLADE, 4, 0.2)
+	end)
+	local r = root(character)
+	if r then
+		impact(r.Position + r.CFrame.LookVector * 5, { Color = SLASH, Scale = 1.1 })
+	end
+end
+
+function Effects.ToraGari(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Zoro.Base[2]
+	local r = root(character)
+	if not r then
+		return
+	end
+	-- Raise the blades overhead, then a heavy vertical cleave.
+	punchArm(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.7)
+	chargeAura(function()
+		return r.Position + Vector3.new(0, 4, 0)
+	end, cfg.WindUp, SLASH)
+	task.delay(cfg.WindUp - 0.05, function()
+		pushBothArms(character, 0.08, 0.14)
+		slash(character, 8, 12, BLADE, 5, 0.22)
+		slash(character, -4, 11, SLASH, 5, 0.22)
+		local hit = r.Position + r.CFrame.LookVector * 6
+		impact(hit, { Color = SLASH, Scale = 1.5, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
+	end)
+end
+
+function Effects.UlToraGari(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Zoro.Base[3]
+	speedLines(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, SLASH)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 300, 60 do
+				arcSlash(character, a + hit * 40, cfg.Radius, hit == cfg.Hits and BLADE or SLASH)
+			end
+			local r = root(character)
+			if r then
+				shake(r.Position, 0.3, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.SwordCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		slash(character, 30, 7, SLASH, 5, 0.16)
+		return
+	end
+	afterImage(character, SLASH, 0.4)
+	speedLines(character, data.Duration or 0.9, SLASH)
+	task.spawn(function()
+		local n = 6
+		for i = 1, n do
+			local side = i % 2 == 0 and 38 or -38
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.9)
+			slash(character, side, 6, i == n and BLADE or SLASH, 4.5, 0.14)
+			task.wait(0.08)
+		end
+	end)
+end
+
+function Effects.Ichibugin(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Zoro.Ult[1]
+	local r = root(character)
+	if not r then
+		return
+	end
+	chargeAura(function()
+		return r.Position + r.CFrame.LookVector * 3 + Vector3.new(0, 2, 0)
+	end, cfg.WindUp, ASHURA_RED)
+	pushBothArms(character, cfg.WindUp * 0.6, cfg.WindUp * 0.4)
+	task.delay(cfg.WindUp - 0.05, function()
+		nineBladeFan(character, cfg.Range * 0.5, ASHURA_RED, 0.35)
+		slash(character, -20, cfg.Range * 0.45, BLADE, 6, 0.28)
+		slash(character, 20, cfg.Range * 0.45, ASHURA_RED, 6, 0.28)
+		local hit = r.Position + r.CFrame.LookVector * (cfg.Range * 0.55)
+		impact(hit, { Color = ASHURA_RED, Scale = 2.4, Heavy = true, CrackColor = Color3.fromRGB(60, 20, 24) })
+		shockwave(hit, 60, ASHURA_RED, 0.6, 1.6)
+		screenFlash(ASHURA_RED, 0.3, 0.25)
+		fovPunch(r.Position, 8, 0.4)
+	end)
+end
+
+function Effects.Makyusen(data)
+	local character = data.Character
+	speedLines(character, data.Duration or 1.4, ASHURA_RED)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed < (data.Duration or 1.4) do
+			punchArm(character, side, 0.05, 0.02, 0.9)
+			slash(character, side == "Right" and -36 or 36, 7, math.random() < 0.5 and ASHURA_RED or BLADE, 5, 0.12)
+			side = side == "Right" and "Left" or "Right"
+			elapsed += task.wait(0.07)
+		end
+	end)
+end
+
+function Effects.Tatsumaki(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Zoro.Ult[3]
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius, 22, SLASH)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 55, cfg.Radius, SLASH)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.KokujoOTatsumaki(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Zoro.Ult[4]
+	local r = root(character)
+	if r then
+		groundDisc(r.Position, cfg.Radius * 2, ASHURA_DARK, 0.6)
+		screenFlash(ASHURA_DARK, 0.3, 0.3)
+	end
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius, 40, ASHURA_DARK)
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius * 0.7, 40, ASHURA_RED)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 315, 45 do
+				arcSlash(character, a + hit * 30, cfg.Radius, hit == cfg.Hits and BLADE or ASHURA_RED)
+			end
+			local rr = root(character)
+			if rr then
+				shake(rr.Position, 0.6, 0.18)
+			end
+			task.wait(cfg.HitInterval)
+		end
+		local rr = root(character)
+		if rr then
+			impact(rr.Position, { Color = ASHURA_RED, Scale = 2.6, Heavy = true })
+		end
+	end)
+end
+
+function Effects.AshuraStart(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	shockwave(r.Position, 55, ASHURA_RED, 0.8, 1.6)
+	groundDisc(r.Position, 50, ASHURA_DARK, 0.7)
+	sparks(r.Position, ASHURA_RED, 50, 45, 2)
+	shake(r.Position, 1.2, 0.5)
+	fovPunch(r.Position, 10, 0.5)
+	if isLocal(character) then
+		screenFlash(ASHURA_RED, 0.5, 0.5)
+	end
+
+	-- Dark aura + phantom blades orbiting while Ashura lasts.
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(ASHURA_DARK)
+	emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2.5), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Transparency = NumberSequence.new(0.35, 1)
+	emitter.Lifetime = NumberRange.new(0.5, 1)
+	emitter.Rate = 26
+	emitter.Speed = NumberRange.new(2, 5)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Parent = r
+	gear5Emitters[character] = emitter
+
+	ashuraAuras[character] = true
+	task.spawn(function()
+		local angle = 0
+		while ashuraAuras[character] do
+			local rNow = root(character)
+			if not rNow then
+				break
+			end
+			angle += 0.35
+			for i = 0, 5 do
+				local a = angle + i * (math.pi * 2 / 6)
+				local blade = makePart({
+					Size = Vector3.new(0.3, 4, 0.3),
+					CFrame = rNow.CFrame * CFrame.new(math.cos(a) * 5, math.sin(a * 1.5) * 2, math.sin(a) * 5) * CFrame.Angles(math.rad(90), 0, 0),
+					Color = i % 2 == 0 and ASHURA_RED or BLADE,
+					Transparency = 0.35,
+				})
+				Debris:AddItem(blade, 0.12)
+			end
+			task.wait(0.06)
+		end
+	end)
+end
+
+function Effects.AshuraEnd(data)
+	ashuraAuras[data.Character] = nil
+	local emitter = gear5Emitters[data.Character]
+	if emitter then
+		emitter.Enabled = false
+		Debris:AddItem(emitter, 1.5)
+		gear5Emitters[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 22, ASHURA_RED, 0.5, 1)
+	end
 end
 
 -- ========================================================================

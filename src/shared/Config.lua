@@ -33,7 +33,7 @@ Config.Roster = {
 		Name = "Roronoa Zoro",
 		Title = "Santoryu",
 		Color = Color3.fromRGB(60, 150, 90),
-		Locked = true,
+		Locked = false,
 		Moves = { "Oni Giri", "Tora Gari", "Ul-Tora Gari", "Sword Combo" },
 		Ult = "Ashura",
 	},
@@ -229,6 +229,125 @@ Config.Ult = {
 	HealPercent = 0.25,          -- heal on activation
 	WalkSpeedBonus = 8,
 	JumpPowerBonus = 25,
+}
+
+-- ========================================================================
+-- Zoro - base moveset (fast rushdown, Three-Sword Style)
+-- ========================================================================
+local ZoroBase = {
+	[1] = {
+		Id = "OniGiri",
+		Name = "Oni Giri",
+		DamagePerHit = 6,
+		Hits = 3,
+		HitInterval = 0.11,
+		Cooldown = 6,
+		DashRange = 30,
+		Range = 9,
+		FinalKnockback = 62,
+		FinalRagdoll = 1.2,
+	},
+	[2] = {
+		Id = "ToraGari",
+		Name = "Tora Gari",
+		Damage = 20,
+		Cooldown = 9,
+		WindUp = 0.32,
+		Range = 12,
+		Width = 8,
+		Knockback = 70,
+		RagdollTime = 1.9,
+	},
+	[3] = {
+		Id = "UlToraGari",
+		Name = "Ul-Tora Gari",
+		DamagePerHit = 7,
+		Hits = 3,
+		HitInterval = 0.16,
+		Cooldown = 11,
+		WindUp = 0.25,
+		Radius = 13,
+		Knockback = 55,
+		RagdollTime = 1.3,
+	},
+	[4] = {
+		Id = "SwordCombo",
+		Name = "Sword Combo",
+		DamagePerHit = 4,
+		Hits = 5,
+		HitInterval = 0.13,
+		Cooldown = 5,
+		DashRange = 24,
+		Range = 8,
+		FinalKnockback = 66,
+		FinalRagdoll = 1.4,
+	},
+}
+
+-- ========================================================================
+-- Zoro - Ashura moveset (Nine-Sword Style, while the ult is active)
+-- ========================================================================
+local ZoroAshura = {
+	[1] = {
+		Id = "Ichibugin",
+		Name = "Ashura: Ichibugin",
+		Damage = 46,
+		Cooldown = 16,
+		WindUp = 0.7,
+		Range = 42,
+		Width = 18,
+		Knockback = 120,
+		RagdollTime = 2.6,
+	},
+	[2] = {
+		Id = "Makyusen",
+		Name = "Makyusen",
+		DamagePerHit = 4,
+		Hits = 12,
+		Duration = 1.4,
+		Cooldown = 11,
+		WindUp = 0.22,
+		Range = 20,
+		Width = 12,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.8,
+	},
+	[3] = {
+		Id = "Tatsumaki",
+		Name = "Tatsumaki",
+		DamagePerHit = 5,
+		Hits = 5,
+		HitInterval = 0.12,
+		Cooldown = 12,
+		WindUp = 0.35,
+		Radius = 16,
+		Knockback = 40,
+		LaunchPower = 85, -- upward launch
+		RagdollTime = 2,
+	},
+	[4] = {
+		Id = "KokujoOTatsumaki",
+		Name = "Kokujo: O Tatsumaki",
+		DamagePerHit = 8,
+		Hits = 8,
+		HitInterval = 0.16,
+		Cooldown = 30,
+		WindUp = 1.1,
+		Radius = 24,
+		Knockback = 60,
+		LaunchPower = 110,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
+-- Per-character moveset registry (consumed by character modules + HUD).
+-- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
+-- Luffy reuses the top-level tables above; new characters add an entry.
+-- ========================================================================
+Config.Movesets = {
+	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
+	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 }
 
 -- ========================================================================

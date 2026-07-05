@@ -14,6 +14,7 @@ local Remotes = require(Shared.Remotes)
 local Combat = require(script.CombatService)
 local MapBuilder = require(script.MapBuilder)
 local Luffy = require(script.Characters.Luffy)
+local Zoro = require(script.Characters.Zoro)
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -34,6 +35,7 @@ MapBuilder.Build()
 -- ========================================================================
 local Characters = {
 	Luffy = Luffy,
+	Zoro = Zoro,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
@@ -227,6 +229,12 @@ local function onCharacterAdded(player, character)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	character:SetAttribute("BlockHealth", Config.Block.MaxHealth)
 	Combat.RefreshMovement(character)
+
+	-- Character-specific spawn setup (e.g. Zoro's welded swords).
+	local module = moduleFor(player)
+	if module.Setup then
+		task.spawn(module.Setup, player, character)
+	end
 
 	-- Brief spawn protection.
 	if Config.Character.SpawnProtectionTime > 0 then

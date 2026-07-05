@@ -16,8 +16,7 @@ local Config = require(Shared.Config)
 local LocalPlayer = Players.LocalPlayer
 
 local BG = Color3.fromRGB(25, 25, 30)
-local ACCENT_BASE = Color3.fromRGB(220, 60, 60)   -- straw hat red
-local ACCENT_GEAR5 = Color3.fromRGB(255, 255, 255)
+local ACCENT_ULT = Color3.fromRGB(255, 255, 255)
 local ULT_COLOR = Color3.fromRGB(255, 200, 60)
 
 local BLOCK_COLOR = Color3.fromRGB(180, 210, 255)
@@ -36,16 +35,34 @@ local function corner(instance, radius)
 	c.Parent = instance
 end
 
+-- Resolves the selected character's moveset + roster entry (for names/colors).
+local function moveset()
+	local id = LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+	return Config.Movesets[id] or Config.Movesets.Luffy
+end
+
+local function accentColor()
+	local id = LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+	for _, entry in Config.Roster do
+		if entry.Id == id then
+			return entry.Color
+		end
+	end
+	return Color3.fromRGB(220, 60, 60)
+end
+
 local function slotName(slot)
-	local cfg = gear5Active and Config.Gear5[slot] or Config.Base[slot]
+	local ms = moveset()
+	local cfg = gear5Active and ms.Ult[slot] or ms.Base[slot]
 	return cfg and cfg.Name or "?"
 end
 
 local function refreshSlotNames()
+	local accent = gear5Active and ACCENT_ULT or accentColor()
 	for slot, ui in slots do
 		ui.nameLabel.Text = slotName(slot)
-		ui.keyLabel.TextColor3 = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
-		ui.stroke.Color = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
+		ui.keyLabel.TextColor3 = accent
+		ui.stroke.Color = accent
 	end
 end
 
@@ -86,7 +103,7 @@ function HUD.Init()
 		corner(frame, 10)
 
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = ACCENT_BASE
+		stroke.Color = accentColor()
 		stroke.Thickness = 1.5
 		stroke.Transparency = 0.3
 		stroke.Parent = frame
@@ -97,7 +114,7 @@ function HUD.Init()
 		keyLabel.Size = UDim2.new(0, 24, 0, 24)
 		keyLabel.Font = Enum.Font.GothamBlack
 		keyLabel.TextSize = 20
-		keyLabel.TextColor3 = ACCENT_BASE
+		keyLabel.TextColor3 = accentColor()
 		keyLabel.Text = tostring(slot)
 		keyLabel.TextXAlignment = Enum.TextXAlignment.Left
 		keyLabel.Parent = frame
@@ -253,6 +270,13 @@ function HUD.Init()
 	end
 	LocalPlayer:GetAttributeChangedSignal("UltCharge"):Connect(onCharge)
 	onCharge()
+
+	-- Switching character swaps the whole moveset display.
+	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(function()
+		gear5Active = false
+		refreshSlotNames()
+		onCharge()
+	end)
 end
 
 -- ========================================================================
@@ -306,12 +330,13 @@ function HUD.ClearCooldowns()
 end
 
 function HUD.SetUltCharge(charge)
+	local ultName = moveset().UltName or "ULT"
 	local ratio = math.clamp(charge / Config.Ult.MaxCharge, 0, 1)
 	TweenService:Create(ultFill, TweenInfo.new(0.2), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
 	if gear5Active then
-		ultLabel.Text = "GEAR 5"
+		ultLabel.Text = ultName:upper()
 	elseif ratio >= 1 then
-		ultLabel.Text = "GEAR 5 READY - PRESS G"
+		ultLabel.Text = ("%s READY - PRESS G"):format(ultName:upper())
 		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
 	else
 		ultLabel.Text = ("ULT %d%%"):format(math.floor(ratio * 100))
@@ -325,7 +350,7 @@ function HUD.SetUltState(active, duration)
 	HUD.ClearCooldowns()
 
 	if active then
-		ultLabel.Text = "GEAR 5"
+		ultLabel.Text = (moveset().UltName or "ULT"):upper()
 		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
 		ultFill.Size = UDim2.new(1, 0, 1, 0)
 		-- Drain the bar over the ult duration as a timer.
