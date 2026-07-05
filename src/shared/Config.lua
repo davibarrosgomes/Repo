@@ -51,7 +51,7 @@ Config.Roster = {
 		Name = "Portgas D. Ace",
 		Title = "Mera Mera no Mi",
 		Color = Color3.fromRGB(235, 120, 40),
-		Locked = true,
+		Locked = false,
 		Moves = { "Hiken", "Higan", "Enkai", "Flame Combo" },
 		Ult = "Great Flame Commandment",
 	},
@@ -457,6 +457,126 @@ local SanjiDiable = {
 }
 
 -- ========================================================================
+-- Ace - base moveset (Mera Mera no Mi; ranged fire zoner, projectiles)
+-- ========================================================================
+local AceBase = {
+	[1] = {
+		Id = "Hiken",
+		Name = "Hiken",
+		Cooldown = 7,
+		WindUp = 0.4,
+		Speed = 130,
+		Life = 1,
+		Radius = 4,
+		Damage = 24,
+		ExplodeRadius = 11,
+		Knockback = 95,
+		RagdollTime = 1.6,
+		Burn = { Dps = 3, Time = 3 },
+	},
+	[2] = {
+		Id = "Higan",
+		Name = "Higan",
+		Cooldown = 9,
+		WindUp = 0.25,
+		Bullets = 6,
+		BulletInterval = 0.09,
+		BulletSpeed = 175,
+		BulletLife = 0.7,
+		BulletRadius = 2,
+		DamagePerBullet = 5,
+		Knockback = 20,
+		Burn = { Dps = 2, Time = 2 },
+	},
+	[3] = {
+		Id = "Enkai",
+		Name = "Enkai",
+		Cooldown = 11,
+		WindUp = 0.45,
+		Range = 42, -- target search range
+		Radius = 9,
+		Damage = 20,
+		Knockback = 40,
+		LaunchPower = 72,
+		RagdollTime = 1.6,
+		Burn = { Dps = 4, Time = 3 },
+	},
+	[4] = {
+		Id = "FlameCombo",
+		Name = "Flame Combo",
+		Cooldown = 6,
+		DashRange = 24,
+		Range = 8,
+		Hits = 5,
+		HitInterval = 0.12,
+		DamagePerHit = 4,
+		FinalKnockback = 60,
+		FinalRagdoll = 1.4,
+		Burn = { Dps = 2, Time = 2 },
+	},
+}
+
+-- ========================================================================
+-- Ace - Great Flame Commandment moveset (ult; enlarged fire attacks)
+-- ========================================================================
+local AceGreatFlame = {
+	[1] = {
+		Id = "Entei",
+		Name = "Dai Enkai: Entei",
+		Cooldown = 18,
+		WindUp = 1,
+		Speed = 80,
+		Life = 1.6,
+		Radius = 12,
+		Damage = 55,
+		ExplodeRadius = 26,
+		Knockback = 150,
+		RagdollTime = 2.6,
+		Burn = { Dps = 6, Time = 4 },
+	},
+	[2] = {
+		Id = "EnhancedHigan",
+		Name = "Enkai: Higan",
+		Cooldown = 12,
+		WindUp = 0.3,
+		Bullets = 12,
+		BulletInterval = 0.07,
+		BulletSpeed = 190,
+		BulletLife = 0.8,
+		BulletRadius = 2.6,
+		DamagePerBullet = 5,
+		ExplodeRadius = 5,
+		Knockback = 25,
+		Burn = { Dps = 3, Time = 2 },
+	},
+	[3] = {
+		Id = "Kyokaen",
+		Name = "Kyokaen",
+		Cooldown = 13,
+		WindUp = 0.5,
+		Range = 32,
+		Width = 16,
+		Damage = 40,
+		Knockback = 110,
+		RagdollTime = 2.2,
+		Burn = { Dps = 5, Time = 3 },
+	},
+	[4] = {
+		Id = "Hotarubi",
+		Name = "Hotarubi: Hidaruma",
+		Cooldown = 30,
+		WindUp = 1.2,
+		Range = 45,
+		Radius = 16,
+		Damage = 60,
+		Knockback = 90,
+		LaunchPower = 60,
+		RagdollTime = 3,
+		Burn = { Dps = 8, Time = 4 },
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- Luffy reuses the top-level tables above; new characters add an entry.
@@ -465,6 +585,7 @@ Config.Movesets = {
 	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
+	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
 }
 
 -- ========================================================================

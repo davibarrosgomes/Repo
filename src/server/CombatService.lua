@@ -16,6 +16,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -28,6 +29,8 @@ local Combat = {}
 -- Monotonic tokens so overlapping statuses don't cancel each other early.
 local stunTokens = {}
 local ragdollTokens = {}
+-- Burn damage-over-time token per victim (refresh instead of stack).
+local burnTokens = setmetatable({}, { __mode = "k" })
 local busyTokens = {}
 -- [character] = os.clock() time until which re-guarding is forbidden
 local blockLock = {}
@@ -398,6 +401,164 @@ function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 	end
 
 	return true
+end
+
+-- ========================================================================
+-- Burn (damage over time) - shared by the fire users
+-- ========================================================================
+
+-- Ticks `dps` damage per second on the victim for `duration`, refreshing an
+-- existing burn rather than stacking. Bypasses guard (already on you) and
+-- drives the ignite VFX.
+function Combat.Burn(attackerPlayer, victim, dps, duration)
+	if not dps or not Combat.IsAlive(victim) then
+		return
+	end
+	local token = (burnTokens[victim] or 0) + 1
+	burnTokens[victim] = token
+	VFX:FireAllClients("IgniteStart", { Character = victim, Duration = duration })
+
+	task.spawn(function()
+		local ticks = math.max(1, math.floor((duration or 3) / 0.5))
+		for _ = 1, ticks do
+			task.wait(0.5)
+			if burnTokens[victim] ~= token or not Combat.IsAlive(victim) then
+				break
+			end
+			Combat.DealDamage(attackerPlayer, victim, dps * 0.5, { SilentVFX = true, Unblockable = true })
+		end
+		if burnTokens[victim] == token and victim.Parent then
+			VFX:FireAllClients("IgniteEnd", { Character = victim })
+		end
+	end)
+end
+
+-- ========================================================================
+-- Projectiles - server-simulated, for ranged characters
+-- ========================================================================
+
+--[[
+	Spawns a server-authoritative projectile from a caster. The client renders
+	the travelling visual via the "FireProjectile" VFX; the server simulates
+	the same kinematics and does all hit detection.
+
+	p fields:
+		Origin, Direction (Vector3, unit)   required
+		Speed, Life, Radius                  travel
+		Damage                               per-hit damage
+		Pierce (bool)                        pass through enemies
+		ExplodeRadius                        AoE burst on impact (optional)
+		Knockback, KnockbackUp, RagdollTime, StunTime
+		Burn = { Dps, Time }                 apply burn on hit (optional)
+		Color                                VFX tint
+		VFXName                              travel effect (default FireProjectile)
+]]
+function Combat.Projectile(attackerPlayer, character, p)
+	local dir = p.Direction.Unit
+	local pos = p.Origin
+	local speed = p.Speed or 100
+	local life = p.Life or 1
+	local radius = p.Radius or 3
+	local hitSet = {}
+	local elapsed = 0
+	local done = false
+
+	-- The wall-ray must ignore every character (enemy hits are handled by the
+	-- overlap check below) so it only explodes on real map geometry.
+	local rayIgnore = { character }
+	local effects = workspace:FindFirstChild("CombatEffects")
+	if effects then
+		table.insert(rayIgnore, effects)
+	end
+	for _, other in Players:GetPlayers() do
+		if other.Character then
+			table.insert(rayIgnore, other.Character)
+		end
+	end
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = rayIgnore
+	rayParams.IgnoreWater = true
+
+	VFX:FireAllClients(p.VFXName or "FireProjectile", {
+		Origin = pos,
+		Direction = dir,
+		Speed = speed,
+		Life = life,
+		Radius = radius,
+		Color = p.Color,
+	})
+
+	local function applyHit(target)
+		local opts = { StunTime = p.StunTime, RagdollTime = p.RagdollTime }
+		if p.Knockback then
+			opts.KnockbackDir = dir
+			opts.KnockbackPower = p.Knockback
+			opts.KnockbackUp = p.KnockbackUp
+		end
+		Combat.DealDamage(attackerPlayer, target, p.Damage or 10, opts)
+		if p.Burn then
+			Combat.Burn(attackerPlayer, target, p.Burn.Dps, p.Burn.Time)
+		end
+	end
+
+	local conn
+	local function finish(atPos, explode)
+		if done then
+			return
+		end
+		done = true
+		if conn then
+			conn:Disconnect()
+		end
+		if p.ExplodeRadius and explode then
+			for _, target in Combat.GetTargetsInBox(CFrame.new(atPos), Vector3.new(p.ExplodeRadius * 2, p.ExplodeRadius * 2, p.ExplodeRadius * 2), character) do
+				applyHit(target)
+			end
+			VFX:FireAllClients("Explosion", { Position = atPos, Radius = p.ExplodeRadius, Color = p.Color })
+		end
+	end
+
+	conn = RunService.Heartbeat:Connect(function(dt)
+		if done then
+			return
+		end
+		elapsed += dt
+		local nextPos = pos + dir * (speed * dt)
+
+		-- Wall / terrain hit.
+		local ray = workspace:Raycast(pos, nextPos - pos, rayParams)
+		if ray then
+			pos = ray.Position
+			finish(pos, true)
+			return
+		end
+		pos = nextPos
+
+		-- Enemy overlap.
+		local targets = Combat.GetTargetsInBox(CFrame.new(pos), Vector3.new(radius * 2, radius * 2, radius * 2), character)
+		if #targets > 0 then
+			if p.Pierce then
+				for _, target in targets do
+					if not hitSet[target] then
+						hitSet[target] = true
+						applyHit(target)
+					end
+				end
+			elseif p.ExplodeRadius then
+				finish(pos, true)
+				return
+			else
+				applyHit(targets[1])
+				finish(pos, false)
+				return
+			end
+		end
+
+		if elapsed >= life then
+			finish(pos, true)
+		end
+	end)
 end
 
 -- ========================================================================

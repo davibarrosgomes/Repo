@@ -1711,6 +1711,258 @@ function Effects.IgniteEnd(data)
 end
 
 -- ========================================================================
+-- Ace effect handlers (fire projectiles + zoning)
+-- ========================================================================
+
+local greatFlameFx = {}
+
+-- Muzzle flash at the caster's hand.
+local function muzzle(character, color)
+	local hand = handPart(character, "Right")
+	if hand then
+		local flash = makePart({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(3, 3, 3),
+			CFrame = CFrame.new(hand.Position),
+			Color = color,
+			Transparency = 0.1,
+		})
+		tween(flash, 0.2, { Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1 })
+		Debris:AddItem(flash, 0.25)
+		sparks(hand.Position, color, 10, 22, 1.2)
+	end
+end
+
+-- A fireball / bullet flying with the same kinematics the server simulates.
+function Effects.FireProjectile(data)
+	local color = data.Color or FIRE_ORANGE
+	local radius = data.Radius or 3
+	local ball = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(radius * 2, radius * 2, radius * 2),
+		CFrame = CFrame.new(data.Origin),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.05,
+	})
+	addTrail(ball, color, 0.25, radius)
+	local fire = Instance.new("Fire")
+	fire.Size = radius * 2.5
+	fire.Heat = 10
+	fire.Color = color
+	fire.SecondaryColor = FIRE_DEEP
+	fire.Parent = ball
+
+	task.spawn(function()
+		local pos = data.Origin
+		local dir = data.Direction
+		local speed = data.Speed or 100
+		local life = data.Life or 1
+		local elapsed = 0
+		while elapsed < life and ball.Parent do
+			local dt = RunService.RenderStepped:Wait()
+			elapsed += dt
+			pos = pos + dir * (speed * dt)
+			ball.CFrame = CFrame.new(pos)
+		end
+		fire.Enabled = false
+		tween(ball, 0.12, { Transparency = 1, Size = Vector3.new(0.5, 0.5, 0.5) })
+	end)
+	Debris:AddItem(ball, (data.Life or 1) + 0.3)
+end
+
+function Effects.Explosion(data)
+	local radius = data.Radius or 8
+	local scale = math.clamp(radius / 6, 1, 5)
+	flameImpact(data.Position, scale, true)
+	shockwave(data.Position, radius * 3, data.Color or FIRE_ORANGE, 0.55, 1.3)
+	if scale >= 2 then
+		screenFlash(FIRE_ORANGE, 0.24, 0.22)
+		fovPunch(data.Position, 6, 0.3)
+	end
+end
+
+function Effects.FirePillar(data)
+	local pos = data.Position
+	local radius = data.Radius or 8
+	-- Telegraph ring while it charges.
+	local ring = makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, radius * 2, radius * 2),
+		CFrame = CFrame.new(pos.X, pos.Y - 2.5, pos.Z) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = data.Color or FIRE_ORANGE,
+		Transparency = 0.4,
+	})
+	Debris:AddItem(ring, (data.Delay or 0.4) + 0.2)
+	task.delay(data.Delay or 0.4, function()
+		local column = makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(26, radius * 1.5, radius * 1.5),
+			CFrame = CFrame.new(pos + Vector3.new(0, 12, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = data.Color or FIRE_ORANGE,
+			Material = Enum.Material.Neon,
+			Transparency = 0.15,
+		})
+		tween(column, 0.5, { Transparency = 1, Size = Vector3.new(28, radius * 2, radius * 2) }, Enum.EasingStyle.Quint)
+		Debris:AddItem(column, 0.6)
+		flameImpact(pos, radius / 6, true)
+		sparks(pos, FIRE_ORANGE, 30, 40, 2)
+	end)
+end
+
+function Effects.AceM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	punchArm(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -24 or 24, 5, FIRE_YELLOW, 5, 0.15)
+	muzzle(data.Character, FIRE_ORANGE)
+end
+
+function Effects.HikenCast(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Ace.Base[1]
+	punchArm(character, "Right", (cfg.WindUp or 0.4) * 0.6, (cfg.WindUp or 0.4) * 0.4, -0.4)
+	chargeAura(function()
+		local hand = handPart(character, "Right")
+		return hand and hand.Position
+	end, cfg.WindUp or 0.4, FIRE_ORANGE)
+	task.delay((cfg.WindUp or 0.4) - 0.05, function()
+		punchArm(character, "Right", 0.08, 0.14, 1.2)
+		muzzle(character, FIRE_ORANGE)
+	end)
+end
+
+function Effects.EnteiCast(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Ace.Ult[1]
+	local r = root(character)
+	pushBothArms(character, (cfg.WindUp or 1) * 0.6, (cfg.WindUp or 1) * 0.4)
+	chargeAura(function()
+		local rr = root(character)
+		return rr and rr.Position + rr.CFrame.LookVector * 3 + Vector3.new(0, 2, 0)
+	end, cfg.WindUp or 1, FIRE_ORANGE)
+	if r then
+		shake(r.Position, 0.4, cfg.WindUp or 1)
+	end
+	task.delay((cfg.WindUp or 1) - 0.05, function()
+		pushBothArms(character, 0.1, 0.2)
+		muzzle(character, FIRE_YELLOW)
+		local rr = root(character)
+		if rr then
+			screenFlash(FIRE_ORANGE, 0.25, 0.2)
+		end
+	end)
+end
+
+function Effects.HiganCast(data)
+	punchArm(data.Character, "Right", 0.08, 0.1, 0.8)
+	muzzle(data.Character, FIRE_ORANGE)
+end
+
+function Effects.FlameCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		flameArc(character, 24, 6, 5)
+		return
+	end
+	afterImage(character, FIRE_ORANGE, 0.4)
+	speedLines(character, data.Duration or 0.9, FIRE_ORANGE)
+	task.spawn(function()
+		for i = 1, 5 do
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			flameArc(character, i % 2 == 0 and 26 or -26, 6, 4.5)
+			task.wait(0.09)
+		end
+	end)
+end
+
+function Effects.Kyokaen(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Ace.Ult[3]
+	local r = root(character)
+	if not r then
+		return
+	end
+	pushBothArms(character, (cfg.WindUp or 0.5) * 0.6, (cfg.WindUp or 0.5) * 0.4)
+	task.delay((cfg.WindUp or 0.5) - 0.05, function()
+		-- A big fiery cross.
+		slash(character, 45, cfg.Range * 0.5, FIRE_YELLOW, 6, 0.3)
+		slash(character, -45, cfg.Range * 0.5, FIRE_ORANGE, 6, 0.3)
+		local hit = r.Position + r.CFrame.LookVector * (cfg.Range * 0.5)
+		flameImpact(hit, 2.2, true)
+		shockwave(hit, 50, FIRE_ORANGE, 0.6, 1.4)
+		screenFlash(FIRE_ORANGE, 0.28, 0.25)
+		fovPunch(r.Position, 8, 0.4)
+	end)
+end
+
+function Effects.Hotarubi(data)
+	local pos = data.Position
+	-- Fireflies gather toward the mark, then it detonates (server fires the
+	-- Explosion at the end).
+	chargeAura(function()
+		return pos
+	end, data.WindUp or 1.2, FIRE_YELLOW)
+	local marker = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2, 2, 2),
+		CFrame = CFrame.new(pos),
+		Color = FIRE_ORANGE,
+		Transparency = 0.4,
+	})
+	tween(marker, data.WindUp or 1.2, { Size = Vector3.new(6, 6, 6), Transparency = 0.1 })
+	Debris:AddItem(marker, (data.WindUp or 1.2) + 0.1)
+end
+
+function Effects.GreatFlameStart(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	shockwave(r.Position, 55, FIRE_ORANGE, 0.8, 1.6)
+	groundDisc(r.Position, 50, FIRE_DEEP, 0.7)
+	sparks(r.Position, FIRE_ORANGE, 60, 50, 2.4)
+	shake(r.Position, 1.3, 0.55)
+	fovPunch(r.Position, 11, 0.55)
+	if isLocal(character) then
+		screenFlash(FIRE_ORANGE, 0.55, 0.5)
+	end
+
+	local instances = {}
+	for _, partName in { "UpperTorso", "Torso", "HumanoidRootPart", "RightLowerArm", "LeftLowerArm" } do
+		local part = character:FindFirstChild(partName)
+		if part then
+			local fire = Instance.new("Fire")
+			fire.Size = partName:find("Torso") and 8 or 4
+			fire.Heat = 10
+			fire.Color = FIRE_ORANGE
+			fire.SecondaryColor = FIRE_DEEP
+			fire.Parent = part
+			table.insert(instances, fire)
+		end
+	end
+	greatFlameFx[character] = instances
+end
+
+function Effects.GreatFlameEnd(data)
+	local instances = greatFlameFx[data.Character]
+	if instances then
+		for _, fire in instances do
+			if fire.Parent then
+				fire.Enabled = false
+				Debris:AddItem(fire, 1)
+			end
+		end
+		greatFlameFx[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 22, FIRE_ORANGE, 0.5, 1)
+	end
+end
+
+-- ========================================================================
 -- Wiring
 -- ========================================================================
 

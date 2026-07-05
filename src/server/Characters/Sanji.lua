@@ -38,8 +38,6 @@ local MY = Config.Movesets.Sanji
 
 local m1State = {}
 local diableTokens = {}
--- Burn DoT token per victim so overlapping burns refresh instead of stacking.
-local burnTokens = setmetatable({}, { __mode = "k" })
 
 -- ========================================================================
 -- Helpers
@@ -73,31 +71,6 @@ local function targetsAround(character, radius)
 		return {}
 	end
 	return Combat.GetTargetsInBox(root.CFrame, Vector3.new(radius * 2, 12, radius * 2), character)
-end
-
--- Applies a burn DoT: `dps` damage per second over `duration`, refreshing.
-local function burn(player, victim, dps, duration)
-	if not dps or not Combat.IsAlive(victim) then
-		return
-	end
-	local token = (burnTokens[victim] or 0) + 1
-	burnTokens[victim] = token
-	VFX:FireAllClients("IgniteStart", { Character = victim, Duration = duration })
-
-	task.spawn(function()
-		local ticks = math.max(1, math.floor(duration / 0.5))
-		for _ = 1, ticks do
-			task.wait(0.5)
-			if burnTokens[victim] ~= token or not Combat.IsAlive(victim) then
-				break
-			end
-			-- Burn bypasses guard (it's already on you) and stays quiet.
-			Combat.DealDamage(player, victim, dps * 0.5, { SilentVFX = true, Unblockable = true })
-		end
-		if burnTokens[victim] == token and victim.Parent then
-			VFX:FireAllClients("IgniteEnd", { Character = victim })
-		end
-	end)
 end
 
 -- ========================================================================
@@ -157,7 +130,7 @@ end
 
 local function applyBurn(player, target, cfg)
 	if cfg.BurnDps then
-		burn(player, target, cfg.BurnDps, cfg.BurnTime or 3)
+		Combat.Burn(player, target, cfg.BurnDps, cfg.BurnTime or 3)
 	end
 end
 

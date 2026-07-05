@@ -75,7 +75,7 @@ Config.Roster = {
 		Name = "Portgas D. Ace",
 		Title = "Mera Mera no Mi",
 		Color = Color3.fromRGB(235, 120, 40),
-		Locked = true,
+		Locked = false,
 		Moves = { "Hiken", "Higan", "Enkai", "Flame Combo" },
 		Ult = "Great Flame Commandment",
 	},
@@ -481,6 +481,126 @@ local SanjiDiable = {
 }
 
 -- ========================================================================
+-- Ace - base moveset (Mera Mera no Mi; ranged fire zoner, projectiles)
+-- ========================================================================
+local AceBase = {
+	[1] = {
+		Id = "Hiken",
+		Name = "Hiken",
+		Cooldown = 7,
+		WindUp = 0.4,
+		Speed = 130,
+		Life = 1,
+		Radius = 4,
+		Damage = 24,
+		ExplodeRadius = 11,
+		Knockback = 95,
+		RagdollTime = 1.6,
+		Burn = { Dps = 3, Time = 3 },
+	},
+	[2] = {
+		Id = "Higan",
+		Name = "Higan",
+		Cooldown = 9,
+		WindUp = 0.25,
+		Bullets = 6,
+		BulletInterval = 0.09,
+		BulletSpeed = 175,
+		BulletLife = 0.7,
+		BulletRadius = 2,
+		DamagePerBullet = 5,
+		Knockback = 20,
+		Burn = { Dps = 2, Time = 2 },
+	},
+	[3] = {
+		Id = "Enkai",
+		Name = "Enkai",
+		Cooldown = 11,
+		WindUp = 0.45,
+		Range = 42, -- target search range
+		Radius = 9,
+		Damage = 20,
+		Knockback = 40,
+		LaunchPower = 72,
+		RagdollTime = 1.6,
+		Burn = { Dps = 4, Time = 3 },
+	},
+	[4] = {
+		Id = "FlameCombo",
+		Name = "Flame Combo",
+		Cooldown = 6,
+		DashRange = 24,
+		Range = 8,
+		Hits = 5,
+		HitInterval = 0.12,
+		DamagePerHit = 4,
+		FinalKnockback = 60,
+		FinalRagdoll = 1.4,
+		Burn = { Dps = 2, Time = 2 },
+	},
+}
+
+-- ========================================================================
+-- Ace - Great Flame Commandment moveset (ult; enlarged fire attacks)
+-- ========================================================================
+local AceGreatFlame = {
+	[1] = {
+		Id = "Entei",
+		Name = "Dai Enkai: Entei",
+		Cooldown = 18,
+		WindUp = 1,
+		Speed = 80,
+		Life = 1.6,
+		Radius = 12,
+		Damage = 55,
+		ExplodeRadius = 26,
+		Knockback = 150,
+		RagdollTime = 2.6,
+		Burn = { Dps = 6, Time = 4 },
+	},
+	[2] = {
+		Id = "EnhancedHigan",
+		Name = "Enkai: Higan",
+		Cooldown = 12,
+		WindUp = 0.3,
+		Bullets = 12,
+		BulletInterval = 0.07,
+		BulletSpeed = 190,
+		BulletLife = 0.8,
+		BulletRadius = 2.6,
+		DamagePerBullet = 5,
+		ExplodeRadius = 5,
+		Knockback = 25,
+		Burn = { Dps = 3, Time = 2 },
+	},
+	[3] = {
+		Id = "Kyokaen",
+		Name = "Kyokaen",
+		Cooldown = 13,
+		WindUp = 0.5,
+		Range = 32,
+		Width = 16,
+		Damage = 40,
+		Knockback = 110,
+		RagdollTime = 2.2,
+		Burn = { Dps = 5, Time = 3 },
+	},
+	[4] = {
+		Id = "Hotarubi",
+		Name = "Hotarubi: Hidaruma",
+		Cooldown = 30,
+		WindUp = 1.2,
+		Range = 45,
+		Radius = 16,
+		Damage = 60,
+		Knockback = 90,
+		LaunchPower = 60,
+		RagdollTime = 3,
+		Burn = { Dps = 8, Time = 4 },
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- Luffy reuses the top-level tables above; new characters add an entry.
@@ -489,6 +609,7 @@ Config.Movesets = {
 	Luffy = { UltName = "Gear 5", Base = Config.Base, Ult = Config.Gear5 },
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
+	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
 }
 
 -- ========================================================================
@@ -603,6 +724,7 @@ local Combat = (function()
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 
 local VFX = Remotes.get("VFX")
@@ -612,6 +734,8 @@ local Combat = {}
 -- Monotonic tokens so overlapping statuses don't cancel each other early.
 local stunTokens = {}
 local ragdollTokens = {}
+-- Burn damage-over-time token per victim (refresh instead of stack).
+local burnTokens = setmetatable({}, { __mode = "k" })
 local busyTokens = {}
 -- [character] = os.clock() time until which re-guarding is forbidden
 local blockLock = {}
@@ -982,6 +1106,164 @@ function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 	end
 
 	return true
+end
+
+-- ========================================================================
+-- Burn (damage over time) - shared by the fire users
+-- ========================================================================
+
+-- Ticks `dps` damage per second on the victim for `duration`, refreshing an
+-- existing burn rather than stacking. Bypasses guard (already on you) and
+-- drives the ignite VFX.
+function Combat.Burn(attackerPlayer, victim, dps, duration)
+	if not dps or not Combat.IsAlive(victim) then
+		return
+	end
+	local token = (burnTokens[victim] or 0) + 1
+	burnTokens[victim] = token
+	VFX:FireAllClients("IgniteStart", { Character = victim, Duration = duration })
+
+	task.spawn(function()
+		local ticks = math.max(1, math.floor((duration or 3) / 0.5))
+		for _ = 1, ticks do
+			task.wait(0.5)
+			if burnTokens[victim] ~= token or not Combat.IsAlive(victim) then
+				break
+			end
+			Combat.DealDamage(attackerPlayer, victim, dps * 0.5, { SilentVFX = true, Unblockable = true })
+		end
+		if burnTokens[victim] == token and victim.Parent then
+			VFX:FireAllClients("IgniteEnd", { Character = victim })
+		end
+	end)
+end
+
+-- ========================================================================
+-- Projectiles - server-simulated, for ranged characters
+-- ========================================================================
+
+--[[
+	Spawns a server-authoritative projectile from a caster. The client renders
+	the travelling visual via the "FireProjectile" VFX; the server simulates
+	the same kinematics and does all hit detection.
+
+	p fields:
+		Origin, Direction (Vector3, unit)   required
+		Speed, Life, Radius                  travel
+		Damage                               per-hit damage
+		Pierce (bool)                        pass through enemies
+		ExplodeRadius                        AoE burst on impact (optional)
+		Knockback, KnockbackUp, RagdollTime, StunTime
+		Burn = { Dps, Time }                 apply burn on hit (optional)
+		Color                                VFX tint
+		VFXName                              travel effect (default FireProjectile)
+]]
+function Combat.Projectile(attackerPlayer, character, p)
+	local dir = p.Direction.Unit
+	local pos = p.Origin
+	local speed = p.Speed or 100
+	local life = p.Life or 1
+	local radius = p.Radius or 3
+	local hitSet = {}
+	local elapsed = 0
+	local done = false
+
+	-- The wall-ray must ignore every character (enemy hits are handled by the
+	-- overlap check below) so it only explodes on real map geometry.
+	local rayIgnore = { character }
+	local effects = workspace:FindFirstChild("CombatEffects")
+	if effects then
+		table.insert(rayIgnore, effects)
+	end
+	for _, other in Players:GetPlayers() do
+		if other.Character then
+			table.insert(rayIgnore, other.Character)
+		end
+	end
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = rayIgnore
+	rayParams.IgnoreWater = true
+
+	VFX:FireAllClients(p.VFXName or "FireProjectile", {
+		Origin = pos,
+		Direction = dir,
+		Speed = speed,
+		Life = life,
+		Radius = radius,
+		Color = p.Color,
+	})
+
+	local function applyHit(target)
+		local opts = { StunTime = p.StunTime, RagdollTime = p.RagdollTime }
+		if p.Knockback then
+			opts.KnockbackDir = dir
+			opts.KnockbackPower = p.Knockback
+			opts.KnockbackUp = p.KnockbackUp
+		end
+		Combat.DealDamage(attackerPlayer, target, p.Damage or 10, opts)
+		if p.Burn then
+			Combat.Burn(attackerPlayer, target, p.Burn.Dps, p.Burn.Time)
+		end
+	end
+
+	local conn
+	local function finish(atPos, explode)
+		if done then
+			return
+		end
+		done = true
+		if conn then
+			conn:Disconnect()
+		end
+		if p.ExplodeRadius and explode then
+			for _, target in Combat.GetTargetsInBox(CFrame.new(atPos), Vector3.new(p.ExplodeRadius * 2, p.ExplodeRadius * 2, p.ExplodeRadius * 2), character) do
+				applyHit(target)
+			end
+			VFX:FireAllClients("Explosion", { Position = atPos, Radius = p.ExplodeRadius, Color = p.Color })
+		end
+	end
+
+	conn = RunService.Heartbeat:Connect(function(dt)
+		if done then
+			return
+		end
+		elapsed += dt
+		local nextPos = pos + dir * (speed * dt)
+
+		-- Wall / terrain hit.
+		local ray = workspace:Raycast(pos, nextPos - pos, rayParams)
+		if ray then
+			pos = ray.Position
+			finish(pos, true)
+			return
+		end
+		pos = nextPos
+
+		-- Enemy overlap.
+		local targets = Combat.GetTargetsInBox(CFrame.new(pos), Vector3.new(radius * 2, radius * 2, radius * 2), character)
+		if #targets > 0 then
+			if p.Pierce then
+				for _, target in targets do
+					if not hitSet[target] then
+						hitSet[target] = true
+						applyHit(target)
+					end
+				end
+			elseif p.ExplodeRadius then
+				finish(pos, true)
+				return
+			else
+				applyHit(targets[1])
+				finish(pos, false)
+				return
+			end
+		end
+
+		if elapsed >= life then
+			finish(pos, true)
+		end
+	end)
 end
 
 -- ========================================================================
@@ -3088,8 +3370,6 @@ local MY = Config.Movesets.Sanji
 
 local m1State = {}
 local diableTokens = {}
--- Burn DoT token per victim so overlapping burns refresh instead of stacking.
-local burnTokens = setmetatable({}, { __mode = "k" })
 
 -- ========================================================================
 -- Helpers
@@ -3123,31 +3403,6 @@ local function targetsAround(character, radius)
 		return {}
 	end
 	return Combat.GetTargetsInBox(root.CFrame, Vector3.new(radius * 2, 12, radius * 2), character)
-end
-
--- Applies a burn DoT: `dps` damage per second over `duration`, refreshing.
-local function burn(player, victim, dps, duration)
-	if not dps or not Combat.IsAlive(victim) then
-		return
-	end
-	local token = (burnTokens[victim] or 0) + 1
-	burnTokens[victim] = token
-	VFX:FireAllClients("IgniteStart", { Character = victim, Duration = duration })
-
-	task.spawn(function()
-		local ticks = math.max(1, math.floor(duration / 0.5))
-		for _ = 1, ticks do
-			task.wait(0.5)
-			if burnTokens[victim] ~= token or not Combat.IsAlive(victim) then
-				break
-			end
-			-- Burn bypasses guard (it's already on you) and stays quiet.
-			Combat.DealDamage(player, victim, dps * 0.5, { SilentVFX = true, Unblockable = true })
-		end
-		if burnTokens[victim] == token and victim.Parent then
-			VFX:FireAllClients("IgniteEnd", { Character = victim })
-		end
-	end)
 end
 
 -- ========================================================================
@@ -3207,7 +3462,7 @@ end
 
 local function applyBurn(player, target, cfg)
 	if cfg.BurnDps then
-		burn(player, target, cfg.BurnDps, cfg.BurnTime or 3)
+		Combat.Burn(player, target, cfg.BurnDps, cfg.BurnTime or 3)
 	end
 end
 
@@ -3513,6 +3768,496 @@ return Sanji
 end)()
 
 -- ====================================================================
+-- MODULE: Ace   (src/server/Characters/Ace.lua)
+-- ====================================================================
+local Ace = (function()
+--[[
+	Ace.lua
+	Server-side implementation of Portgas D. Ace: a ranged fire zoner using
+	the Mera Mera no Mi. Most of his kit is projectiles (Combat.Projectile);
+	every hit applies burn.
+
+	Base moveset (slots 1-4):
+		1  Hiken       - a big fireball that explodes on impact
+		2  Higan       - rapid barrage of fire bullets
+		3  Enkai       - a pillar of fire erupts at the nearest enemy
+		4  Flame Combo - a close-range dash combo (panic option)
+
+	Ult (G): GREAT FLAME COMMANDMENT for a limited time; slots become:
+		1  Dai Enkai: Entei    - a colossal slow fireball
+		2  Enkai: Higan        - an enlarged exploding-bullet barrage
+		3  Kyokaen            - a wide cross-shaped fire blast
+		4  Hotarubi: Hidaruma  - fireflies gather on a target and detonate
+
+	Interface matches the other characters.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+
+
+local VFX = Remotes.get("VFX")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+local FIRE = Color3.fromRGB(255, 140, 40)
+
+local Ace = {}
+
+local MY = Config.Movesets.Ace
+
+local m1State = {}
+local flameTokens = {}
+
+-- ========================================================================
+-- Helpers
+-- ========================================================================
+
+local function faceTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		local lookAt = Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z)
+		root.CFrame = CFrame.lookAt(root.Position, lookAt)
+	end
+end
+
+local function dashToTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3.5)
+		root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
+	end
+end
+
+local function isGreatFlame(character)
+	return character:GetAttribute("GreatFlame") == true
+end
+
+-- Aim toward the nearest enemy (slight auto-aim), else straight ahead.
+local function aimDirection(character, range)
+	local root = Combat.Root(character)
+	if not root then
+		return Vector3.zAxis
+	end
+	local origin = root.Position + Vector3.new(0, 1.5, 0)
+	local target = Combat.NearestTarget(character, range or 80)
+	if target then
+		local targetRoot = Combat.Root(target)
+		if targetRoot then
+			local to = (targetRoot.Position + Vector3.new(0, 1, 0)) - origin
+			-- Only auto-aim if the target is roughly in front.
+			if to.Magnitude > 0.1 and Combat.FlatLook(character):Dot(Vector3.new(to.X, 0, to.Z)) > 0 then
+				return to.Unit
+			end
+		end
+	end
+	return Combat.FlatLook(character)
+end
+
+local function muzzleOrigin(character, dir)
+	local root = Combat.Root(character)
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	flat = flat.Magnitude > 0.001 and flat.Unit or Combat.FlatLook(character)
+	return root.Position + Vector3.new(0, 1.5, 0) + flat * 2.5
+end
+
+-- ========================================================================
+-- M1 combo (fire jabs)
+-- ========================================================================
+
+function Ace.M1(player, character)
+	if not Combat.IsActionable(character) then
+		return
+	end
+
+	local cfg = Config.M1
+	local now = os.clock()
+	local state = m1State[player]
+	if not state then
+		state = { count = 0, lastSwing = 0, lockedUntil = 0 }
+		m1State[player] = state
+	end
+
+	if now < state.lockedUntil then
+		return
+	end
+	if now - state.lastSwing < cfg.SwingCooldown then
+		return
+	end
+	if now - state.lastSwing > cfg.ComboResetTime then
+		state.count = 0
+	end
+
+	state.count += 1
+	state.lastSwing = now
+	local isFinisher = state.count >= cfg.ComboHits
+	if isFinisher then
+		state.count = 0
+		state.lockedUntil = now + cfg.ChainCooldown
+	end
+
+	local look = Combat.FlatLook(character)
+	VFX:FireAllClients("AceM1", { Character = character, Index = isFinisher and cfg.ComboHits or state.count })
+
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+		if isFinisher then
+			Combat.DealDamage(player, target, cfg.Damage, {
+				KnockbackDir = look,
+				KnockbackPower = cfg.FinisherKnockback,
+				RagdollTime = cfg.FinisherRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.Damage, { StunTime = cfg.HitStun })
+		end
+	end
+end
+
+-- ========================================================================
+-- Projectile-based moves
+-- ========================================================================
+
+-- Single big fireball (Hiken / Entei).
+local function fireball(player, character, cfg, castEffect)
+	Combat.SetBusy(character, cfg.WindUp + 0.3, true)
+	VFX:FireAllClients(castEffect, { Character = character, WindUp = cfg.WindUp })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	local dir = aimDirection(character, 90)
+	Combat.Projectile(player, character, {
+		Origin = muzzleOrigin(character, dir),
+		Direction = dir,
+		Speed = cfg.Speed,
+		Life = cfg.Life,
+		Radius = cfg.Radius,
+		Damage = cfg.Damage,
+		ExplodeRadius = cfg.ExplodeRadius,
+		Knockback = cfg.Knockback,
+		KnockbackUp = cfg.Knockback * 0.35,
+		RagdollTime = cfg.RagdollTime,
+		Burn = cfg.Burn,
+		Color = FIRE,
+	})
+end
+
+-- Rapid bullet barrage (Higan / Enhanced Higan).
+local function bulletBarrage(player, character, cfg, castEffect)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Bullets * cfg.BulletInterval + 0.2, true)
+	VFX:FireAllClients(castEffect, { Character = character, Bullets = cfg.Bullets })
+
+	task.wait(cfg.WindUp)
+	for _ = 1, cfg.Bullets do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local dir = aimDirection(character, 90)
+		-- A little spread.
+		dir = (dir + Vector3.new((math.random() - 0.5) * 0.06, (math.random() - 0.5) * 0.05, (math.random() - 0.5) * 0.06)).Unit
+		Combat.Projectile(player, character, {
+			Origin = muzzleOrigin(character, dir),
+			Direction = dir,
+			Speed = cfg.BulletSpeed,
+			Life = cfg.BulletLife,
+			Radius = cfg.BulletRadius,
+			Damage = cfg.DamagePerBullet,
+			ExplodeRadius = cfg.ExplodeRadius,
+			Knockback = cfg.Knockback,
+			Burn = cfg.Burn,
+			Color = FIRE,
+		})
+		task.wait(cfg.BulletInterval)
+	end
+end
+
+-- A pillar of fire that erupts at a captured position (Enkai).
+local function firePillar(player, character, cfg, effectName)
+	local target = Combat.NearestTarget(character, cfg.Range)
+	local root = Combat.Root(character)
+	if not root then
+		return
+	end
+	local center
+	if target then
+		local targetRoot = Combat.Root(target)
+		center = targetRoot and targetRoot.Position or (root.Position + Combat.FlatLook(character) * 12)
+	else
+		center = root.Position + Combat.FlatLook(character) * 12
+	end
+
+	Combat.SetBusy(character, cfg.WindUp + 0.3)
+	VFX:FireAllClients(effectName, { Position = center, Radius = cfg.Radius, Delay = cfg.WindUp, Color = FIRE })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	for _, tgt in Combat.GetTargetsInBox(CFrame.new(center), Vector3.new(cfg.Radius * 2, 22, cfg.Radius * 2), character) do
+		local targetRoot = Combat.Root(tgt)
+		local dir = targetRoot and (targetRoot.Position - center) or Vector3.zAxis
+		Combat.DealDamage(player, tgt, cfg.Damage, {
+			KnockbackDir = dir,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.LaunchPower,
+			RagdollTime = cfg.RagdollTime,
+		})
+		if cfg.Burn then
+			Combat.Burn(player, tgt, cfg.Burn.Dps, cfg.Burn.Time)
+		end
+	end
+end
+
+-- Wide forward cross blast (Kyokaen).
+local function crossBlast(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + 0.3, true)
+	VFX:FireAllClients(effectName, { Character = character, WindUp = cfg.WindUp, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	local look = Combat.FlatLook(character)
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width, 18) do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.Knockback * 0.3,
+			RagdollTime = cfg.RagdollTime,
+		})
+		if cfg.Burn then
+			Combat.Burn(player, target, cfg.Burn.Dps, cfg.Burn.Time)
+		end
+	end
+end
+
+-- Fireflies gather on the nearest target and detonate (Hotarubi finisher).
+local function hotarubi(player, character, cfg, effectName)
+	local target = Combat.NearestTarget(character, cfg.Range)
+	Combat.SetBusy(character, cfg.WindUp + 0.4, true)
+
+	local root = Combat.Root(character)
+	local markPos = root and (root.Position + Combat.FlatLook(character) * 14) or Vector3.zero
+	if target then
+		local targetRoot = Combat.Root(target)
+		markPos = targetRoot and targetRoot.Position or markPos
+	end
+	VFX:FireAllClients(effectName, { Position = markPos, Radius = cfg.Radius, WindUp = cfg.WindUp, Color = FIRE })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	-- Detonate at the target's current position if it still exists.
+	local center = markPos
+	if target and Combat.IsAlive(target) then
+		local targetRoot = Combat.Root(target)
+		if targetRoot then
+			center = targetRoot.Position
+		end
+	end
+
+	VFX:FireAllClients("Explosion", { Position = center, Radius = cfg.Radius, Color = FIRE })
+	for _, tgt in Combat.GetTargetsInBox(CFrame.new(center), Vector3.new(cfg.Radius * 2, cfg.Radius * 2, cfg.Radius * 2), character) do
+		local targetRoot = Combat.Root(tgt)
+		local dir = targetRoot and (targetRoot.Position - center) or Vector3.zAxis
+		Combat.DealDamage(player, tgt, cfg.Damage, {
+			KnockbackDir = dir,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.LaunchPower,
+			RagdollTime = cfg.RagdollTime,
+		})
+		if cfg.Burn then
+			Combat.Burn(player, tgt, cfg.Burn.Dps, cfg.Burn.Time)
+		end
+	end
+end
+
+-- Close-range dash combo (Flame Combo).
+local function flameCombo(player, character, cfg, effectName)
+	local target = Combat.NearestTarget(character, cfg.DashRange)
+	if not target then
+		Combat.SetBusy(character, 0.4)
+		VFX:FireAllClients(effectName, { Character = character, Whiff = true })
+		task.wait(0.2)
+		local look = Combat.FlatLook(character)
+		for _, hit in Combat.FrontHitbox(character, cfg.Range, 6) do
+			Combat.DealDamage(player, hit, cfg.DamagePerHit * 2, { KnockbackDir = look, KnockbackPower = 40, StunTime = 0.6 })
+			if cfg.Burn then
+				Combat.Burn(player, hit, cfg.Burn.Dps, cfg.Burn.Time)
+			end
+		end
+		return
+	end
+
+	local totalTime = cfg.Hits * cfg.HitInterval + 0.3
+	Combat.SetBusy(character, totalTime, true)
+	dashToTarget(character, target)
+	VFX:FireAllClients(effectName, { Character = character, Target = target, Duration = totalTime })
+
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or not Combat.IsAlive(target) then
+			return
+		end
+		faceTarget(character, target)
+		local isLast = hit == cfg.Hits
+		if isLast then
+			Combat.DealDamage(player, target, cfg.DamagePerHit, {
+				KnockbackDir = Combat.FlatLook(character),
+				KnockbackPower = cfg.FinalKnockback,
+				RagdollTime = cfg.FinalRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = cfg.HitInterval * 2 })
+		end
+		if cfg.Burn then
+			Combat.Burn(player, target, cfg.Burn.Dps, cfg.Burn.Time)
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+-- ========================================================================
+-- Move bindings
+-- ========================================================================
+
+local function hiken(player, character)
+	fireball(player, character, MY.Base[1], "HikenCast")
+end
+local function higan(player, character)
+	bulletBarrage(player, character, MY.Base[2], "HiganCast")
+end
+local function enkai(player, character)
+	firePillar(player, character, MY.Base[3], "FirePillar")
+end
+local function baseFlameCombo(player, character)
+	flameCombo(player, character, MY.Base[4], "FlameCombo")
+end
+
+local function entei(player, character)
+	fireball(player, character, MY.Ult[1], "EnteiCast")
+end
+local function enhancedHigan(player, character)
+	bulletBarrage(player, character, MY.Ult[2], "HiganCast")
+end
+local function kyokaen(player, character)
+	crossBlast(player, character, MY.Ult[3], "Kyokaen")
+end
+local function hotarubiMove(player, character)
+	hotarubi(player, character, MY.Ult[4], "Hotarubi")
+end
+
+-- ========================================================================
+-- Ult: Great Flame Commandment
+-- ========================================================================
+
+function Ace.ActivateUlt(player, character)
+	if not Combat.IsActionable(character) then
+		return false
+	end
+	if isGreatFlame(character) then
+		return false
+	end
+	local charge = player:GetAttribute("UltCharge") or 0
+	if charge < Config.Ult.MaxCharge then
+		return false
+	end
+
+	player:SetAttribute("UltCharge", 0)
+	character:SetAttribute("GreatFlame", true)
+
+	local token = (flameTokens[player] or 0) + 1
+	flameTokens[player] = token
+
+	local humanoid = Combat.Humanoid(character)
+	if humanoid then
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * Config.Ult.HealPercent)
+	end
+
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed + Config.Ult.WalkSpeedBonus)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower + Config.Ult.JumpPowerBonus)
+	Combat.RefreshMovement(character)
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "GreatFlameHighlight"
+	highlight.FillColor = Color3.fromRGB(120, 40, 10)
+	highlight.OutlineColor = Color3.fromRGB(255, 150, 50)
+	highlight.FillTransparency = 0.35
+	highlight.OutlineTransparency = 0
+	highlight.Parent = character
+
+	VFX:FireAllClients("GreatFlameStart", { Character = character, Duration = Config.Ult.Duration })
+	HUDUpdate:FireClient(player, "UltState", true, Config.Ult.Duration)
+
+	task.delay(Config.Ult.Duration, function()
+		if flameTokens[player] == token then
+			Ace.DeactivateUlt(player, character)
+		end
+	end)
+
+	return true
+end
+
+function Ace.DeactivateUlt(player, character)
+	if not character or not character.Parent or not isGreatFlame(character) then
+		return
+	end
+	character:SetAttribute("GreatFlame", false)
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
+	Combat.RefreshMovement(character)
+
+	local highlight = character:FindFirstChild("GreatFlameHighlight")
+	if highlight then
+		highlight:Destroy()
+	end
+
+	VFX:FireAllClients("GreatFlameEnd", { Character = character })
+	if player.Parent then
+		HUDUpdate:FireClient(player, "UltState", false)
+	end
+end
+
+-- ========================================================================
+-- Skill dispatch
+-- ========================================================================
+
+local BASE_MOVES = { hiken, higan, enkai, baseFlameCombo }
+local FLAME_MOVES = { entei, enhancedHigan, kyokaen, hotarubiMove }
+
+function Ace.UseSkill(player, character, slot)
+	if not Combat.IsActionable(character) then
+		return nil
+	end
+
+	local flame = isGreatFlame(character)
+	local moveset = flame and FLAME_MOVES or BASE_MOVES
+	local cfg = flame and MY.Ult[slot] or MY.Base[slot]
+	local move = moveset[slot]
+	if not move or not cfg then
+		return nil
+	end
+
+	local result = move(player, character)
+	if result == false then
+		return nil
+	end
+	return cfg.Cooldown
+end
+
+function Ace.ForgetPlayer(player)
+	m1State[player] = nil
+	flameTokens[player] = nil
+end
+
+return Ace
+end)()
+
+-- ====================================================================
 -- MAIN: init.server   (src/server/init.server.lua)
 -- ====================================================================
 --[[
@@ -3547,6 +4292,7 @@ local Characters = {
 	Luffy = Luffy,
 	Zoro = Zoro,
 	Sanji = Sanji,
+	Ace = Ace,
 }
 local DEFAULT_CHARACTER = "Luffy"
 

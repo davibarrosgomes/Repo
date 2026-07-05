@@ -7,6 +7,8 @@ Playable characters (pick via the topbar character button):
 - **Roronoa Zoro** — fast three-sword rushdown + an **Ashura** ultimate
 - **Vinsmoke Sanji** — mobile Black Leg kicks + a **Diable Jambe** ultimate
   that sets enemies on fire (burn damage-over-time)
+- **Portgas D. Ace** — ranged fire zoner (projectiles) + a **Great Flame
+  Commandment** ultimate; his hits also burn
 
 Each character has a full 4-slot base moveset and an ultimate transformation
 that replaces all four skills.
