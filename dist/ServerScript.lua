@@ -2518,12 +2518,20 @@ end
 -- Procedural swords
 -- ========================================================================
 
+-- Grip poses (relative to the limb). Tune these if a blade sits oddly on
+-- your rig: the first CFrame is the position offset, the Angles is how the
+-- blade is rotated. The blade is built along the katana's local +Y axis.
+local RIGHT_GRIP = CFrame.new(0, 0, -0.7) * CFrame.Angles(math.rad(-95), 0, 0)
+local LEFT_GRIP = CFrame.new(0, 0, -0.7) * CFrame.Angles(math.rad(-95), 0, 0)
+local MOUTH_GRIP = CFrame.new(0, -0.45, -1) * CFrame.Angles(0, 0, math.rad(90))
+
 local function makeBladePart(name, size, color, material)
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Size = size
 	p.Color = color
 	p.Material = material or Enum.Material.Metal
+	p.Anchored = false
 	p.CanCollide = false
 	p.CanQuery = false
 	p.CanTouch = false
@@ -2533,49 +2541,63 @@ local function makeBladePart(name, size, color, material)
 	return p
 end
 
--- Builds a katana whose hilt sits at `grip` (relative to `limb`) and welds
--- every piece to the limb so it follows the body.
-local function attachKatana(limb, grip)
+-- Builds a katana and rigidly welds each piece to `limb` with an explicit
+-- C0, so the blade is positioned deterministically (no unanchored fall
+-- window like WeldConstraint has). Pieces stack along the grip's local +Y.
+local function attachKatana(limb, gripC0, folder)
 	local pieces = {
-		makeBladePart("Handle", Vector3.new(0.3, 1.6, 0.3), Color3.fromRGB(30, 30, 34), Enum.Material.SmoothPlastic),
-		makeBladePart("Guard", Vector3.new(1.1, 0.2, 0.3), Color3.fromRGB(70, 55, 30), Enum.Material.Metal),
-		makeBladePart("Blade", Vector3.new(0.16, 5, 0.55), Color3.fromRGB(220, 224, 232), Enum.Material.Metal),
+		{
+			part = makeBladePart("Handle", Vector3.new(0.32, 1.4, 0.32), Color3.fromRGB(28, 28, 34), Enum.Material.SmoothPlastic),
+			offset = CFrame.new(0, 0, 0),
+		},
+		{
+			part = makeBladePart("Guard", Vector3.new(1.0, 0.2, 0.34), Color3.fromRGB(90, 70, 34), Enum.Material.Metal),
+			offset = CFrame.new(0, 0.85, 0),
+		},
+		{
+			part = makeBladePart("Blade", Vector3.new(0.16, 4.6, 0.52), Color3.fromRGB(222, 226, 234), Enum.Material.Metal),
+			offset = CFrame.new(0, 3.2, 0),
+		},
 	}
-	local offsets = {
-		CFrame.new(0, 0, 0),          -- handle at grip
-		CFrame.new(0, 1, 0),          -- guard above handle
-		CFrame.new(0, 3.6, 0),        -- blade above guard
-	}
-	for i, piece in pieces do
-		piece.CFrame = limb.CFrame * grip * offsets[i]
-		local weld = Instance.new("WeldConstraint")
+	for _, entry in pieces do
+		local part = entry.part
+		part.Parent = folder
+		local weld = Instance.new("Weld")
 		weld.Part0 = limb
-		weld.Part1 = piece
-		weld.Parent = piece
-		piece.Parent = limb.Parent
+		weld.Part1 = part
+		weld.C0 = gripC0 * entry.offset
+		weld.Parent = part
 	end
 end
 
 -- Called by the server (in a task.spawn) when a Zoro character spawns.
 function Zoro.Setup(_player, character)
-	-- Body parts can stream in a frame after the Humanoid; wait briefly.
-	local rightHand = character:WaitForChild("RightHand", 5)
-		or character:FindFirstChild("Right Arm")
+	-- Body parts can stream in slightly after the Humanoid; wait for them.
+	local rightHand = character:WaitForChild("RightHand", 5) or character:FindFirstChild("Right Arm")
 	local leftHand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
 	local head = character:FindFirstChild("Head")
 	if not character.Parent then
 		return
 	end
 
+	-- Never stack duplicates when the character is set up more than once.
+	local existing = character:FindFirstChild("Santoryu")
+	if existing then
+		existing:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Santoryu"
+	folder.Parent = character
+
 	if rightHand then
-		attachKatana(rightHand, CFrame.new(0, 0, -0.4) * CFrame.Angles(math.rad(-8), 0, 0))
+		attachKatana(rightHand, RIGHT_GRIP, folder)
 	end
 	if leftHand then
-		attachKatana(leftHand, CFrame.new(0, 0, -0.4) * CFrame.Angles(math.rad(-8), 0, 0))
+		attachKatana(leftHand, LEFT_GRIP, folder)
 	end
 	if head then
 		-- Wado Ichimonji held horizontally in his mouth.
-		attachKatana(head, CFrame.new(0, -0.5, -1) * CFrame.Angles(0, 0, math.rad(90)))
+		attachKatana(head, MOUTH_GRIP, folder)
 	end
 end
 
