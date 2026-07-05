@@ -1,0 +1,4414 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX13"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="ReplicatedStorage" referent="RBX14"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">--[[
+	Config.lua
+	Central balance / tuning data for the whole game.
+	All damage numbers, cooldowns, ranges and timings live here so the
+	game can be rebalanced without touching combat logic.
+]]
+
+local Config = {}
+
+-- ========================================================================
+-- Playable roster (drives the character-select menu).
+-- Only entries with Locked = false have a server-side moveset module.
+-- To add a character: build src/server/Characters/&lt;Id&gt;.lua, register it in
+-- init.server.lua's Characters table, and flip Locked to false here.
+-- ========================================================================
+Config.Roster = {
+	{
+		Id = "Luffy",
+		Name = "Monkey D. Luffy",
+		Title = "Gomu Gomu no Mi",
+		Color = Color3.fromRGB(220, 60, 60),
+		Locked = false,
+		Moves = {
+			"Gomu Gomu no Pistol",
+			"Gomu Gomu no Bazooka",
+			"Gomu Gomu no Gatling",
+			"Rubber Combo",
+		},
+		Ult = "Gear 5",
+	},
+	{
+		Id = "Zoro",
+		Name = "Roronoa Zoro",
+		Title = "Santoryu",
+		Color = Color3.fromRGB(60, 150, 90),
+		Locked = true,
+		Moves = { "Oni Giri", "Tora Gari", "Ul-Tora Gari", "Sword Combo" },
+		Ult = "Ashura",
+	},
+	{
+		Id = "Sanji",
+		Name = "Vinsmoke Sanji",
+		Title = "Black Leg",
+		Color = Color3.fromRGB(230, 200, 70),
+		Locked = true,
+		Moves = { "Collier", "Concasse", "Party Table Kick", "Kick Combo" },
+		Ult = "Diable Jambe",
+	},
+	{
+		Id = "Ace",
+		Name = "Portgas D. Ace",
+		Title = "Mera Mera no Mi",
+		Color = Color3.fromRGB(235, 120, 40),
+		Locked = true,
+		Moves = { "Hiken", "Higan", "Enkai", "Flame Combo" },
+		Ult = "Great Flame Commandment",
+	},
+	{
+		Id = "Law",
+		Name = "Trafalgar Law",
+		Title = "Ope Ope no Mi",
+		Color = Color3.fromRGB(210, 210, 220),
+		Locked = true,
+		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
+		Ult = "Gamma Knife",
+	},
+}
+
+-- ========================================================================
+-- General character stats
+-- ========================================================================
+Config.Character = {
+	BaseWalkSpeed = 16,
+	BaseJumpPower = 50,
+	MaxHealth = 100,
+	SpawnProtectionTime = 3, -- seconds of ForceField after spawning
+}
+
+-- ========================================================================
+-- Dash (Q)
+-- ========================================================================
+Config.Dash = {
+	Speed = 90,
+	Duration = 0.22,
+	UpBoost = 4,
+	Cooldown = 3,
+}
+
+-- ========================================================================
+-- Block (hold F)
+-- ========================================================================
+Config.Block = {
+	MaxHealth = 45,        -- damage a full guard can absorb
+	RegenPerSecond = 9,    -- regenerates while not blocking
+	WalkSpeed = 6,         -- movement while guarding
+	BreakLockout = 4,      -- seconds you cannot re-guard after a guard break
+	BreakRagdoll = 2.5,    -- ragdoll punish when the guard shatters
+}
+
+-- ========================================================================
+-- M1 (left click) combo
+-- ========================================================================
+Config.M1 = {
+	Damage = 5,
+	Range = 7,            -- studs in front of the attacker
+	Width = 5,
+	ComboHits = 4,        -- hits in a full chain
+	SwingCooldown = 0.35, -- time between swings inside the chain
+	ComboResetTime = 1.2, -- idle time before the chain resets
+	ChainCooldown = 1.4,  -- lockout after finishing a full chain
+	HitStun = 0.45,
+	FinisherKnockback = 55,
+	FinisherRagdoll = 1.2,
+}
+
+-- ========================================================================
+-- Luffy - base moveset (slots 1-4)
+-- ========================================================================
+Config.Base = {
+	[1] = {
+		Id = "Pistol",
+		Name = "Gomu Gomu no Pistol",
+		Damage = 16,
+		Cooldown = 6,
+		WindUp = 0.35,
+		Range = 32, -- how far the arm stretches
+		Width = 6,
+		Knockback = 70,
+		RagdollTime = 1.5,
+	},
+	[2] = {
+		Id = "Bazooka",
+		Name = "Gomu Gomu no Bazooka",
+		Damage = 24,
+		Cooldown = 10,
+		WindUp = 0.5,
+		Range = 13,
+		Width = 11,
+		Knockback = 110,
+		RagdollTime = 2.2,
+	},
+	[3] = {
+		Id = "Gatling",
+		Name = "Gomu Gomu no Gatling",
+		DamagePerHit = 3,
+		Hits = 10,
+		Duration = 1.6,
+		Cooldown = 14,
+		WindUp = 0.4,
+		Range = 15,
+		Width = 10,
+		FinalKnockback = 60,
+		FinalRagdoll = 1.5,
+	},
+	[4] = {
+		Id = "RubberCombo",
+		Name = "Rubber Combo",
+		DamagePerHit = 4,
+		Hits = 5,
+		HitInterval = 0.2,
+		Cooldown = 18,
+		DashRange = 26, -- how far Luffy can snap to a target
+		Range = 8,      -- fallback swipe range if nobody is close
+		FinalKnockback = 80,
+		FinalRagdoll = 1.8,
+	},
+}
+
+-- ========================================================================
+-- Luffy - Gear 5 moveset (slots 1-4 while the ult is active)
+-- ========================================================================
+Config.Gear5 = {
+	[1] = {
+		Id = "BajrangGun",
+		Name = "Gomu Gomu no Bajrang Gun",
+		Damage = 60,
+		Cooldown = 20,
+		WindUp = 1.2,
+		Range = 70,
+		Width = 34, -- the fist is island sized
+		Height = 34,
+		Knockback = 160,
+		RagdollTime = 3,
+	},
+	[2] = {
+		Id = "DawnGatling",
+		Name = "Gomu Gomu no Dawn Gatling",
+		DamagePerHit = 4,
+		Hits = 14,
+		Duration = 1.6,
+		Cooldown = 12,
+		WindUp = 0.3,
+		Range = 22,
+		Width = 16,
+		FinalKnockback = 80,
+		FinalRagdoll = 2,
+	},
+	[3] = {
+		Id = "ToonForce",
+		Name = "Toon Force",
+		DamagePerHit = 5,
+		Hits = 6,
+		HitInterval = 0.22,
+		Cooldown = 18,
+		DashRange = 24,
+		Range = 9,
+		ParalyzeTime = 3.5, -- rubberized paralysis after the last punch
+	},
+	[4] = {
+		Id = "Devour",
+		Name = "Drums of Liberation",
+		Cooldown = 45,
+		WindUp = 2.2,   -- chest beating channel (huge telegraph = fair one-shot)
+		Range = 12,
+		Width = 10,
+		OneUsePerUlt = true,
+		Damage = 10000, -- one hit kill
+	},
+}
+
+-- ========================================================================
+-- Ultimate (Gear 5)
+-- ========================================================================
+Config.Ult = {
+	MaxCharge = 100,
+	ChargePerDamageDealt = 0.35, -- ult charge gained per point of damage dealt
+	ChargePerDamageTaken = 0.15, -- ult charge gained per point of damage taken
+	Duration = 30,               -- seconds Gear 5 lasts
+	HealPercent = 0.25,          -- heal on activation
+	WalkSpeedBonus = 8,
+	JumpPowerBonus = 25,
+}
+
+-- ========================================================================
+-- Assets. Replace the zeros with your own uploaded asset ids.
+-- Every consumer of this table safely skips ids that are 0.
+-- ========================================================================
+Config.Sounds = {
+	Punch = 0,
+	HeavyImpact = 0,
+	Stretch = 0,
+	Gear5Activate = 0,
+	DrumsOfLiberation = 0, -- the Gear 5 heartbeat drums
+	Gulp = 0,
+}
+
+Config.Animations = {
+	M1 = { 0, 0, 0, 0 }, -- one per swing in the chain
+	Pistol = 0,
+	Bazooka = 0,
+	Gatling = 0,
+	RubberCombo = 0,
+	BajrangGun = 0,
+	DawnGatling = 0,
+	ToonForce = 0,
+	Devour = 0,
+	Gear5Idle = 0,
+}
+
+return Config
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2"><Properties><string name="Name">Remotes</string><ProtectedString name="Source">--[[
+	Remotes.lua
+	Creates (on the server) and fetches (on either side) the RemoteEvents
+	used by the combat system.
+
+	UseSkill     client -&gt; server : (slot: number 1-4)
+	M1           client -&gt; server : ()
+	ActivateUlt  client -&gt; server : ()
+	Dash             client -&gt; server : ()
+	Block            client -&gt; server : (enabled: boolean)
+	SelectCharacter  client -&gt; server : (characterId: string)
+	VFX          server -&gt; client : (effectName: string, data: table)
+	HUDUpdate    server -&gt; client : (kind: string, ...)
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "VFX", "HUDUpdate" }
+
+local Remotes = {}
+
+local folder
+if RunService:IsServer() then
+	folder = ReplicatedStorage:FindFirstChild("Remotes")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Remotes"
+		for _, name in NAMES do
+			local remote = Instance.new("RemoteEvent")
+			remote.Name = name
+			remote.Parent = folder
+		end
+		folder.Parent = ReplicatedStorage
+	end
+else
+	folder = ReplicatedStorage:WaitForChild("Remotes")
+end
+
+function Remotes.get(name)
+	-- Time out instead of yielding forever, so a stale/mismatched Remotes
+	-- module surfaces as a clear error instead of a silent hang (which would
+	-- stall the map build on the server and the UI on the client).
+	local remote = folder:WaitForChild(name, 10)
+	if not remote then
+		error(
+			("Remotes.get: RemoteEvent %q was not found. Make sure the Remotes "
+				.. "module is updated to the latest version on BOTH server and client."):format(name),
+			2
+		)
+	end
+	return remote
+end
+
+return Remotes
+</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX15"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX8"><Properties><string name="Name">Server</string><ProtectedString name="Source">--[[
+	init.server.lua
+	Main server entry point: player/character setup, remote handling,
+	server-side cooldown enforcement, KO leaderboard.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local Combat = require(script.CombatService)
+local MapBuilder = require(script.MapBuilder)
+local Luffy = require(script.Characters.Luffy)
+
+local UseSkill = Remotes.get("UseSkill")
+local M1 = Remotes.get("M1")
+local ActivateUlt = Remotes.get("ActivateUlt")
+local Dash = Remotes.get("Dash")
+local Block = Remotes.get("Block")
+local SelectCharacter = Remotes.get("SelectCharacter")
+local VFX = Remotes.get("VFX")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+MapBuilder.Build()
+
+-- ========================================================================
+-- Character registry
+-- Every playable (unlocked) character has a module here with a uniform
+-- interface: UseSkill, M1, ActivateUlt, DeactivateUlt, ForgetPlayer.
+-- Add a new character with one line once its module + roster entry exist.
+-- ========================================================================
+local Characters = {
+	Luffy = Luffy,
+}
+local DEFAULT_CHARACTER = "Luffy"
+
+-- Which roster ids are actually selectable (unlocked + have a module).
+local unlockedIds = {}
+for _, entry in Config.Roster do
+	if not entry.Locked and Characters[entry.Id] then
+		unlockedIds[entry.Id] = true
+	end
+end
+
+local function moduleFor(player)
+	local id = player:GetAttribute("SelectedCharacter") or DEFAULT_CHARACTER
+	return Characters[id] or Luffy
+end
+
+-- [player] = { [slot] = os.clock() time when the slot is ready again }
+local cooldowns = {}
+-- [player] = true while one of their skills is still executing
+local casting = {}
+-- [player] = os.clock() time when the dash is ready again
+local dashReady = {}
+
+-- ========================================================================
+-- Skill handling
+-- ========================================================================
+
+UseSkill.OnServerEvent:Connect(function(player, slot)
+	if type(slot) ~= "number" or slot &lt; 1 or slot &gt; 4 or slot % 1 ~= 0 then
+		return
+	end
+	local character = player.Character
+	if not character or casting[player] then
+		return
+	end
+
+	local playerCooldowns = cooldowns[player]
+	if not playerCooldowns then
+		playerCooldowns = {}
+		cooldowns[player] = playerCooldowns
+	end
+	if os.clock() &lt; (playerCooldowns[slot] or 0) then
+		return
+	end
+
+	Combat.SetBlocking(character, false) -- attacking drops your guard
+
+	casting[player] = true
+	local ok, cooldown = pcall(moduleFor(player).UseSkill, player, character, slot)
+	casting[player] = nil
+
+	if not ok then
+		warn(("Skill %d errored for %s: %s"):format(slot, player.Name, tostring(cooldown)))
+		return
+	end
+	if cooldown then
+		playerCooldowns[slot] = os.clock() + cooldown
+		HUDUpdate:FireClient(player, "Cooldown", slot, cooldown)
+	end
+end)
+
+M1.OnServerEvent:Connect(function(player)
+	local character = player.Character
+	if character and not casting[player] then
+		Combat.SetBlocking(character, false)
+		moduleFor(player).M1(player, character)
+	end
+end)
+
+-- ========================================================================
+-- Dash &amp; block
+-- ========================================================================
+
+Dash.OnServerEvent:Connect(function(player)
+	local character = player.Character
+	if not character or not Combat.IsActionable(character) then
+		return
+	end
+	if os.clock() &lt; (dashReady[player] or 0) then
+		return
+	end
+	local root = Combat.Root(character)
+	local humanoid = Combat.Humanoid(character)
+	if not root or not humanoid then
+		return
+	end
+
+	Combat.SetBlocking(character, false)
+	dashReady[player] = os.clock() + Config.Dash.Cooldown
+
+	-- Dash along the movement input, or forward when standing still.
+	local direction = humanoid.MoveDirection
+	if direction.Magnitude &lt; 0.1 then
+		direction = Combat.FlatLook(character)
+	end
+	direction = Vector3.new(direction.X, 0, direction.Z).Unit
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = root
+	local velocity = Instance.new("LinearVelocity")
+	velocity.Attachment0 = attachment
+	velocity.MaxForce = math.huge
+	velocity.VectorVelocity = direction * Config.Dash.Speed + Vector3.new(0, Config.Dash.UpBoost, 0)
+	velocity.Parent = root
+	task.delay(Config.Dash.Duration, function()
+		velocity:Destroy()
+		attachment:Destroy()
+	end)
+
+	VFX:FireAllClients("Dash", { Character = character, Direction = direction })
+	HUDUpdate:FireClient(player, "DashCooldown", Config.Dash.Cooldown)
+end)
+
+Block.OnServerEvent:Connect(function(player, enabled)
+	local character = player.Character
+	if character and type(enabled) == "boolean" and not casting[player] then
+		Combat.SetBlocking(character, enabled)
+	end
+end)
+
+-- Guard durability regenerates while not blocking.
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		for _, player in Players:GetPlayers() do
+			local character = player.Character
+			if character and Combat.IsAlive(character) and not character:GetAttribute("Blocking") then
+				local blockHealth = character:GetAttribute("BlockHealth") or 0
+				if blockHealth &lt; Config.Block.MaxHealth then
+					character:SetAttribute(
+						"BlockHealth",
+						math.min(Config.Block.MaxHealth, blockHealth + Config.Block.RegenPerSecond * 0.25)
+					)
+				end
+			end
+		end
+	end
+end)
+
+ActivateUlt.OnServerEvent:Connect(function(player)
+	local character = player.Character
+	if not character then
+		return
+	end
+	if moduleFor(player).ActivateUlt(player, character) then
+		-- Fresh moveset, fresh slots.
+		cooldowns[player] = {}
+	end
+end)
+
+-- ========================================================================
+-- Character selection
+-- ========================================================================
+
+SelectCharacter.OnServerEvent:Connect(function(player, id)
+	if type(id) ~= "string" or not unlockedIds[id] then
+		return
+	end
+	if player:GetAttribute("SelectedCharacter") == id then
+		return
+	end
+
+	-- Drop any active ult on the current character before switching.
+	if player.Character then
+		local current = moduleFor(player)
+		if current.DeactivateUlt then
+			current.DeactivateUlt(player, player.Character)
+		end
+	end
+
+	player:SetAttribute("SelectedCharacter", id)
+	player:SetAttribute("UltCharge", 0)
+	cooldowns[player] = {}
+	dashReady[player] = nil
+
+	-- Respawn so any character-specific setup applies cleanly.
+	player:LoadCharacter()
+end)
+
+-- ========================================================================
+-- Player / character lifecycle
+-- ========================================================================
+
+local function onCharacterAdded(player, character)
+	local humanoid = character:WaitForChild("Humanoid")
+	humanoid.MaxHealth = Config.Character.MaxHealth
+	humanoid.Health = Config.Character.MaxHealth
+	humanoid.BreakJointsOnDeath = false
+
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
+	character:SetAttribute("BlockHealth", Config.Block.MaxHealth)
+	Combat.RefreshMovement(character)
+
+	-- Brief spawn protection.
+	if Config.Character.SpawnProtectionTime &gt; 0 then
+		local forceField = Instance.new("ForceField")
+		forceField.Parent = character
+		task.delay(Config.Character.SpawnProtectionTime, function()
+			forceField:Destroy()
+		end)
+	end
+
+	humanoid.Died:Connect(function()
+		-- KO credit.
+		local attackerId = character:GetAttribute("LastAttackerId")
+		if attackerId then
+			local attacker = Players:GetPlayerByUserId(attackerId)
+			if attacker and attacker ~= player then
+				local stats = attacker:FindFirstChild("leaderstats")
+				local kos = stats and stats:FindFirstChild("KOs")
+				if kos then
+					kos.Value += 1
+				end
+			end
+		end
+		moduleFor(player).DeactivateUlt(player, character)
+		Combat.ForgetCharacter(character)
+	end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	player:SetAttribute("UltCharge", 0)
+	player:SetAttribute("SelectedCharacter", DEFAULT_CHARACTER)
+
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	local kos = Instance.new("IntValue")
+	kos.Name = "KOs"
+	kos.Parent = leaderstats
+	leaderstats.Parent = player
+
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		onCharacterAdded(player, player.Character)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	cooldowns[player] = nil
+	casting[player] = nil
+	dashReady[player] = nil
+	for _, module in Characters do
+		if module.ForgetPlayer then
+			module.ForgetPlayer(player)
+		end
+	end
+	if player.Character then
+		Combat.ForgetCharacter(player.Character)
+	end
+end)
+</ProtectedString></Properties><Item class="Folder" referent="RBX5"><Properties><string name="Name">Characters</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">Luffy</string><ProtectedString name="Source">--[[
+	Luffy.lua
+	Server-side implementation of Luffy's complete kit.
+
+	Base moveset (slots 1-4):
+		1  Gomu Gomu no Pistol   - long range stretching punch
+		2  Gomu Gomu no Bazooka  - double-arm strike, huge knockback
+		3  Gomu Gomu no Gatling  - rapid multi-hit punch barrage
+		4  Rubber Combo          - dash-in 5-hit combo
+
+	Ult (G): transforms into GEAR 5 for a limited time and the slots become:
+		1  Gomu Gomu no Bajrang Gun  - island-sized fist
+		2  Gomu Gomu no Dawn Gatling - barrage that looks like many arms at once
+		3  Toon Force              - rubberizes the enemy, combos them, and
+		                             leaves them paralyzed after the last punch
+		4  Drums of Liberation     - beats his chest, head grows huge, and he
+		                             DEVOURS the enemy: one hit kill
+
+	Every function here trusts nothing from the client except "which slot
+	was pressed" - all validation, timing, hitboxes and damage are server side.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local Combat = require(script.Parent.Parent.CombatService)
+
+local VFX = Remotes.get("VFX")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+local Luffy = {}
+
+-- M1 chain state per player: { count, lastSwing, lockedUntil }
+local m1State = {}
+-- Gear 5 activation token per player so an old ult can't revert a new one.
+local gear5Tokens = {}
+
+-- ========================================================================
+-- Helpers
+-- ========================================================================
+
+local function faceTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		local lookAt = Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z)
+		root.CFrame = CFrame.lookAt(root.Position, lookAt)
+	end
+end
+
+-- Snaps the attacker right in front of the target (battlegrounds style dash).
+local function dashToTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3.5)
+		root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
+	end
+end
+
+local function isGear5(character)
+	return character:GetAttribute("Gear5") == true
+end
+
+-- ========================================================================
+-- M1 combo
+-- ========================================================================
+
+function Luffy.M1(player, character)
+	if not Combat.IsActionable(character) then
+		return
+	end
+
+	local cfg = Config.M1
+	local now = os.clock()
+	local state = m1State[player]
+	if not state then
+		state = { count = 0, lastSwing = 0, lockedUntil = 0 }
+		m1State[player] = state
+	end
+
+	if now &lt; state.lockedUntil then
+		return
+	end
+	if now - state.lastSwing &lt; cfg.SwingCooldown then
+		return
+	end
+	if now - state.lastSwing &gt; cfg.ComboResetTime then
+		state.count = 0
+	end
+
+	state.count += 1
+	state.lastSwing = now
+	local isFinisher = state.count &gt;= cfg.ComboHits
+	if isFinisher then
+		state.count = 0
+		state.lockedUntil = now + cfg.ChainCooldown
+	end
+
+	local look = Combat.FlatLook(character)
+	VFX:FireAllClients("M1Swing", { Character = character, Index = isFinisher and cfg.ComboHits or state.count })
+
+	local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width)
+	for _, target in targets do
+		if isFinisher then
+			Combat.DealDamage(player, target, cfg.Damage, {
+				KnockbackDir = look,
+				KnockbackPower = cfg.FinisherKnockback,
+				RagdollTime = cfg.FinisherRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.Damage, { StunTime = cfg.HitStun })
+		end
+	end
+end
+
+-- ========================================================================
+-- Base moveset
+-- ========================================================================
+
+-- Slot 1: Gomu Gomu no Pistol - devastating stretching punch.
+local function pistol(player, character)
+	local cfg = Config.Base[1]
+	Combat.SetBusy(character, cfg.WindUp + 0.3)
+	VFX:FireAllClients("Pistol", { Character = character, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	local look = Combat.FlatLook(character)
+	local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width)
+	for _, target in targets do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			RagdollTime = cfg.RagdollTime,
+		})
+	end
+end
+
+-- Slot 2: Gomu Gomu no Bazooka - double-arm strike.
+local function bazooka(player, character)
+	local cfg = Config.Base[2]
+	Combat.SetBusy(character, cfg.WindUp + 0.3, true)
+	VFX:FireAllClients("Bazooka", { Character = character })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	local look = Combat.FlatLook(character)
+	local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width)
+	for _, target in targets do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.Knockback * 0.45,
+			RagdollTime = cfg.RagdollTime,
+		})
+	end
+end
+
+-- Shared implementation for Gatling and Dawn Gatling.
+local function gatlingBarrage(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Duration + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, Duration = cfg.Duration, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+
+	local interval = cfg.Duration / cfg.Hits
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local isLast = hit == cfg.Hits
+		local look = Combat.FlatLook(character)
+		local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width)
+		for _, target in targets do
+			if isLast then
+				Combat.DealDamage(player, target, cfg.DamagePerHit, {
+					KnockbackDir = look,
+					KnockbackPower = cfg.FinalKnockback,
+					RagdollTime = cfg.FinalRagdoll,
+				})
+			else
+				-- Victims are stitched in place by the barrage.
+				Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = interval * 2, SilentVFX = hit % 2 == 0 })
+			end
+		end
+		if not isLast then
+			task.wait(interval)
+		end
+	end
+end
+
+-- Slot 3: Gomu Gomu no Gatling.
+local function gatling(player, character)
+	gatlingBarrage(player, character, Config.Base[3], "Gatling")
+end
+
+-- Shared implementation for Rubber Combo and Toon Force.
+-- `onFinalHit(target)` decides what the last punch does.
+local function dashCombo(player, character, cfg, effectName, onFinalHit)
+	local target = Combat.NearestTarget(character, cfg.DashRange)
+
+	if not target then
+		-- Nobody in dash range: do a single short-range swipe instead.
+		Combat.SetBusy(character, 0.4)
+		VFX:FireAllClients(effectName, { Character = character, Whiff = true })
+		task.wait(0.25)
+		local look = Combat.FlatLook(character)
+		for _, hit in Combat.FrontHitbox(character, cfg.Range, 6) do
+			Combat.DealDamage(player, hit, cfg.DamagePerHit * 2, {
+				KnockbackDir = look,
+				KnockbackPower = 40,
+				StunTime = 0.6,
+			})
+		end
+		return
+	end
+
+	local totalTime = cfg.Hits * cfg.HitInterval + 0.3
+	Combat.SetBusy(character, totalTime, true)
+	dashToTarget(character, target)
+	VFX:FireAllClients(effectName, { Character = character, Target = target, Duration = totalTime })
+
+	if effectName == "ToonForce" then
+		-- The opponent is turned into rubber for the whole combo.
+		Combat.Rubberize(target, cfg.Hits * cfg.HitInterval + cfg.ParalyzeTime)
+	end
+
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or not Combat.IsAlive(target) then
+			return
+		end
+		faceTarget(character, target)
+		local isLast = hit == cfg.Hits
+		if isLast then
+			onFinalHit(target)
+		else
+			Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = cfg.HitInterval * 2 })
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+-- Slot 4: Rubber Combo - relentless dash-in combo.
+local function rubberCombo(player, character)
+	local cfg = Config.Base[4]
+	dashCombo(player, character, cfg, "RubberCombo", function(target)
+		Combat.DealDamage(player, target, cfg.DamagePerHit, {
+			KnockbackDir = Combat.FlatLook(character),
+			KnockbackPower = cfg.FinalKnockback,
+			RagdollTime = cfg.FinalRagdoll,
+		})
+	end)
+end
+
+-- ========================================================================
+-- Gear 5 moveset
+-- ========================================================================
+
+-- Slot 1 (Gear 5): Gomu Gomu no Bajrang Gun - island-sized fist.
+local function bajrangGun(player, character)
+	local cfg = Config.Gear5[1]
+	Combat.SetBusy(character, cfg.WindUp + 0.6, true)
+	VFX:FireAllClients("BajrangGun", { Character = character, WindUp = cfg.WindUp, Range = cfg.Range })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	local look = Combat.FlatLook(character)
+	local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width, cfg.Height)
+	for _, target in targets do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.Knockback * 0.4,
+			RagdollTime = cfg.RagdollTime,
+		})
+	end
+end
+
+-- Slot 2 (Gear 5): Gomu Gomu no Dawn Gatling - looks like dozens of arms.
+local function dawnGatling(player, character)
+	gatlingBarrage(player, character, Config.Gear5[2], "DawnGatling")
+end
+
+-- Slot 3 (Gear 5): Toon Force combo - rubberize, punish, paralyze.
+local function toonForce(player, character)
+	local cfg = Config.Gear5[3]
+	dashCombo(player, character, cfg, "ToonForce", function(target)
+		-- Final punch: big damage and the rubber paralysis keeps running
+		-- (it was applied for combo time + ParalyzeTime when the combo began).
+		Combat.DealDamage(player, target, cfg.DamagePerHit * 3, {
+			KnockbackDir = Combat.FlatLook(character),
+			KnockbackPower = 25,
+		})
+	end)
+end
+
+-- Slot 4 (Gear 5): Drums of Liberation - chest beat, giant head, DEVOUR.
+local function devour(player, character)
+	local cfg = Config.Gear5[4]
+
+	if cfg.OneUsePerUlt and character:GetAttribute("DevourUsed") then
+		return false -- refuse: refund the cooldown
+	end
+	character:SetAttribute("DevourUsed", true)
+
+	-- Long, loud, rooted channel: everyone nearby hears the drums and can run.
+	Combat.SetBusy(character, cfg.WindUp + 1, true)
+	VFX:FireAllClients("DrumsChannel", { Character = character, Duration = cfg.WindUp })
+
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+
+	local targets = Combat.FrontHitbox(character, cfg.Range, cfg.Width)
+	local victim = targets[1]
+	if victim then
+		faceTarget(character, victim)
+		Combat.Stun(victim, 1.5)
+		VFX:FireAllClients("Devour", { Character = character, Target = victim })
+		task.wait(0.6) -- the head grows and chomps
+		if Combat.IsAlive(character) and Combat.IsAlive(victim) then
+			-- A grab: guards do not save you from being eaten.
+			Combat.DealDamage(player, victim, cfg.Damage, { SilentVFX = true, Unblockable = true })
+		end
+	else
+		VFX:FireAllClients("DevourWhiff", { Character = character })
+	end
+end
+
+-- ========================================================================
+-- Ult: Gear 5 transformation
+-- ========================================================================
+
+function Luffy.ActivateUlt(player, character)
+	if not Combat.IsActionable(character) then
+		return false
+	end
+	if isGear5(character) then
+		return false
+	end
+	local charge = player:GetAttribute("UltCharge") or 0
+	if charge &lt; Config.Ult.MaxCharge then
+		return false
+	end
+
+	player:SetAttribute("UltCharge", 0)
+	character:SetAttribute("Gear5", true)
+	character:SetAttribute("DevourUsed", false)
+
+	local token = (gear5Tokens[player] or 0) + 1
+	gear5Tokens[player] = token
+
+	local humanoid = Combat.Humanoid(character)
+	if humanoid then
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * Config.Ult.HealPercent)
+	end
+
+	-- Gear 5 movement buff (BaseWalkSpeed is what stuns restore to).
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed + Config.Ult.WalkSpeedBonus)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower + Config.Ult.JumpPowerBonus)
+	Combat.RefreshMovement(character)
+
+	-- The white "Sun God Nika" look, replicated to everyone automatically.
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "Gear5Highlight"
+	highlight.FillColor = Color3.new(1, 1, 1)
+	highlight.OutlineColor = Color3.fromRGB(255, 220, 240)
+	highlight.FillTransparency = 0.35
+	highlight.OutlineTransparency = 0
+	highlight.Parent = character
+
+	VFX:FireAllClients("Gear5Start", { Character = character, Duration = Config.Ult.Duration })
+	HUDUpdate:FireClient(player, "UltState", true, Config.Ult.Duration)
+
+	task.delay(Config.Ult.Duration, function()
+		if gear5Tokens[player] == token then
+			Luffy.DeactivateUlt(player, character)
+		end
+	end)
+
+	return true
+end
+
+function Luffy.DeactivateUlt(player, character)
+	if not character or not character.Parent or not isGear5(character) then
+		return
+	end
+	character:SetAttribute("Gear5", false)
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
+	Combat.RefreshMovement(character)
+
+	local highlight = character:FindFirstChild("Gear5Highlight")
+	if highlight then
+		highlight:Destroy()
+	end
+
+	VFX:FireAllClients("Gear5End", { Character = character })
+	if player.Parent then
+		HUDUpdate:FireClient(player, "UltState", false)
+	end
+end
+
+-- ========================================================================
+-- Skill dispatch
+-- ========================================================================
+
+local BASE_MOVES = { pistol, bazooka, gatling, rubberCombo }
+local GEAR5_MOVES = { bajrangGun, dawnGatling, toonForce, devour }
+
+-- Executes a skill. Returns the cooldown to apply, or nil if it didn't cast.
+function Luffy.UseSkill(player, character, slot)
+	if not Combat.IsActionable(character) then
+		return nil
+	end
+
+	local gear5 = isGear5(character)
+	local moveset = gear5 and GEAR5_MOVES or BASE_MOVES
+	local cfgTable = gear5 and Config.Gear5 or Config.Base
+	local move = moveset[slot]
+	local cfg = cfgTable[slot]
+	if not move or not cfg then
+		return nil
+	end
+
+	local result = move(player, character)
+	if result == false then
+		return nil -- move refused to cast (e.g. Devour already used)
+	end
+	return cfg.Cooldown
+end
+
+function Luffy.ForgetPlayer(player)
+	m1State[player] = nil
+	gear5Tokens[player] = nil
+end
+
+return Luffy
+</ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX6"><Properties><string name="Name">CombatService</string><ProtectedString name="Source">--[[
+	CombatService.lua
+	Server-authoritative combat primitives shared by every character:
+	hitboxes, damage, ult charge, stun / ragdoll / paralysis, knockback.
+
+	Status is stored as attributes on the character model so both server
+	logic and client input code can read it:
+		Stunned     (bool)   - cannot act or move
+		Ragdolled   (bool)   - knocked down (PlatformStand)
+		Rubberized  (bool)   - Toon Force paralysis
+		Busy        (bool)   - mid-attack, cannot start another action
+		Gear5       (bool)   - ult transformation active
+		Blocking    (bool)   - guarding (front hits absorbed by BlockHealth)
+		BlockHealth (number) - remaining guard durability
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local VFX = Remotes.get("VFX")
+
+local Combat = {}
+
+-- Monotonic tokens so overlapping statuses don't cancel each other early.
+local stunTokens = {}
+local ragdollTokens = {}
+local busyTokens = {}
+-- [character] = os.clock() time until which re-guarding is forbidden
+local blockLock = {}
+
+-- ========================================================================
+-- Small helpers
+-- ========================================================================
+
+function Combat.Root(character)
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+function Combat.Humanoid(character)
+	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+function Combat.IsAlive(character)
+	local humanoid = Combat.Humanoid(character)
+	return humanoid ~= nil and humanoid.Health &gt; 0
+end
+
+-- Can this character start a new action (attack, skill, ult)?
+function Combat.IsActionable(character)
+	if not Combat.IsAlive(character) then
+		return false
+	end
+	return not (
+		character:GetAttribute("Stunned")
+		or character:GetAttribute("Ragdolled")
+		or character:GetAttribute("Rubberized")
+		or character:GetAttribute("Busy")
+	)
+end
+
+-- Flat, horizontal look direction of the character.
+function Combat.FlatLook(character)
+	local root = Combat.Root(character)
+	if not root then
+		return Vector3.zAxis
+	end
+	local look = root.CFrame.LookVector
+	look = Vector3.new(look.X, 0, look.Z)
+	if look.Magnitude &lt; 0.001 then
+		return Vector3.zAxis
+	end
+	return look.Unit
+end
+
+local function baseWalkSpeed(character)
+	return character:GetAttribute("BaseWalkSpeed") or Config.Character.BaseWalkSpeed
+end
+
+local function baseJumpPower(character)
+	return character:GetAttribute("BaseJumpPower") or Config.Character.BaseJumpPower
+end
+
+-- Re-apply movement stats from attributes (used when a status expires).
+function Combat.RefreshMovement(character)
+	local humanoid = Combat.Humanoid(character)
+	if not humanoid then
+		return
+	end
+	if character:GetAttribute("Stunned") or character:GetAttribute("Rubberized") then
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+	elseif character:GetAttribute("Blocking") then
+		humanoid.WalkSpeed = Config.Block.WalkSpeed
+		humanoid.JumpPower = 0
+	else
+		humanoid.WalkSpeed = baseWalkSpeed(character)
+		humanoid.JumpPower = baseJumpPower(character)
+	end
+end
+
+-- ========================================================================
+-- Hitboxes
+-- ========================================================================
+
+-- Returns a list of enemy character models whose parts overlap a box.
+function Combat.GetTargetsInBox(cframe, size, excludeCharacter)
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { excludeCharacter }
+
+	local found = {}
+	for _, part in workspace:GetPartBoundsInBox(cframe, size, params) do
+		local model = part:FindFirstAncestorOfClass("Model")
+		if model and not found[model] then
+			local humanoid = model:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health &gt; 0 then
+				found[model] = true
+			end
+		end
+	end
+
+	local targets = {}
+	for model in found do
+		table.insert(targets, model)
+	end
+	return targets
+end
+
+-- Convenience: box placed `range/2` studs in front of the character.
+function Combat.FrontHitbox(character, range, width, height)
+	local root = Combat.Root(character)
+	if not root then
+		return {}
+	end
+	height = height or 8
+	local cframe = root.CFrame * CFrame.new(0, 0, -range / 2)
+	return Combat.GetTargetsInBox(cframe, Vector3.new(width, height, range), character), cframe
+end
+
+-- Nearest living enemy inside `range`, or nil.
+function Combat.NearestTarget(character, range)
+	local root = Combat.Root(character)
+	if not root then
+		return nil
+	end
+	local best, bestDist = nil, range
+	for _, model in Combat.GetTargetsInBox(root.CFrame, Vector3.new(range * 2, range * 2, range * 2), character) do
+		local targetRoot = Combat.Root(model)
+		if targetRoot then
+			local dist = (targetRoot.Position - root.Position).Magnitude
+			if dist &lt;= bestDist then
+				best, bestDist = model, dist
+			end
+		end
+	end
+	return best
+end
+
+-- ========================================================================
+-- Status effects
+-- ========================================================================
+
+function Combat.Stun(character, duration)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	local token = (stunTokens[character] or 0) + 1
+	stunTokens[character] = token
+
+	character:SetAttribute("Stunned", true)
+	Combat.RefreshMovement(character)
+
+	task.delay(duration, function()
+		if stunTokens[character] == token and character.Parent then
+			character:SetAttribute("Stunned", false)
+			Combat.RefreshMovement(character)
+		end
+	end)
+end
+
+function Combat.Ragdoll(character, duration)
+	local humanoid = Combat.Humanoid(character)
+	if not humanoid or humanoid.Health &lt;= 0 then
+		return
+	end
+	local token = (ragdollTokens[character] or 0) + 1
+	ragdollTokens[character] = token
+
+	character:SetAttribute("Ragdolled", true)
+	humanoid.PlatformStand = true
+	Combat.Stun(character, duration) -- ragdoll implies stun
+
+	task.delay(duration, function()
+		if ragdollTokens[character] == token and character.Parent then
+			character:SetAttribute("Ragdolled", false)
+			local h = Combat.Humanoid(character)
+			if h then
+				h.PlatformStand = false
+			end
+		end
+	end)
+end
+
+-- Toon Force paralysis: the victim is turned to rubber and cannot move.
+function Combat.Rubberize(character, duration)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	character:SetAttribute("Rubberized", true)
+	Combat.RefreshMovement(character)
+	VFX:FireAllClients("RubberizeStart", { Character = character, Duration = duration })
+
+	task.delay(duration, function()
+		if character.Parent then
+			character:SetAttribute("Rubberized", false)
+			Combat.RefreshMovement(character)
+			VFX:FireAllClients("RubberizeEnd", { Character = character })
+		end
+	end)
+end
+
+-- Marks the attacker as mid-move. `freeze` optionally roots them in place
+-- during the windup of heavy moves.
+function Combat.SetBusy(character, duration, freeze)
+	local humanoid = Combat.Humanoid(character)
+	if not humanoid then
+		return
+	end
+	local token = (busyTokens[character] or 0) + 1
+	busyTokens[character] = token
+
+	character:SetAttribute("Busy", true)
+	if freeze then
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+	end
+	task.delay(duration, function()
+		if busyTokens[character] == token and character.Parent then
+			character:SetAttribute("Busy", false)
+			Combat.RefreshMovement(character)
+		end
+	end)
+end
+
+-- ========================================================================
+-- Blocking
+-- ========================================================================
+
+function Combat.SetBlocking(character, enabled)
+	local wasBlocking = character:GetAttribute("Blocking") == true
+	if enabled then
+		if wasBlocking or not Combat.IsAlive(character) then
+			return
+		end
+		if not Combat.IsActionable(character) then
+			return
+		end
+		if os.clock() &lt; (blockLock[character] or 0) then
+			return -- guard is still broken
+		end
+		if (character:GetAttribute("BlockHealth") or 0) &lt;= 0 then
+			return
+		end
+		character:SetAttribute("Blocking", true)
+		VFX:FireAllClients("BlockStart", { Character = character })
+	else
+		if not wasBlocking then
+			return
+		end
+		character:SetAttribute("Blocking", false)
+		VFX:FireAllClients("BlockEnd", { Character = character })
+	end
+	Combat.RefreshMovement(character)
+end
+
+local function tryBlock(attackerPlayer, victimCharacter, amount)
+	if victimCharacter:GetAttribute("Blocking") ~= true then
+		return false
+	end
+
+	-- Guards only cover the front 180 degrees.
+	local attackerCharacter = attackerPlayer and attackerPlayer.Character
+	local attackerRoot = attackerCharacter and Combat.Root(attackerCharacter)
+	local victimRoot = Combat.Root(victimCharacter)
+	if attackerRoot and victimRoot then
+		local toAttacker = attackerRoot.Position - victimRoot.Position
+		if toAttacker.Magnitude &gt; 0.001 and victimRoot.CFrame.LookVector:Dot(toAttacker.Unit) &lt;= 0 then
+			return false -- hit from behind
+		end
+	end
+
+	local blockHealth = (victimCharacter:GetAttribute("BlockHealth") or 0) - amount
+	if blockHealth &gt; 0 then
+		-- Fully absorbed: no damage, no stun, no knockback.
+		victimCharacter:SetAttribute("BlockHealth", blockHealth)
+		if victimRoot then
+			VFX:FireAllClients("BlockHit", { Position = victimRoot.Position })
+		end
+		return true
+	end
+
+	-- GUARD BREAK: the guard shatters, the hit lands, and re-guarding is
+	-- locked out while the victim eats the punish.
+	victimCharacter:SetAttribute("BlockHealth", 0)
+	blockLock[victimCharacter] = os.clock() + Config.Block.BreakLockout
+	Combat.SetBlocking(victimCharacter, false)
+	Combat.Ragdoll(victimCharacter, Config.Block.BreakRagdoll)
+	if victimRoot then
+		VFX:FireAllClients("GuardBreak", { Position = victimRoot.Position })
+	end
+	return false
+end
+
+-- ========================================================================
+-- Knockback
+-- ========================================================================
+
+function Combat.Knockback(character, direction, power, upwardPower)
+	local root = Combat.Root(character)
+	if not root then
+		return
+	end
+	direction = Vector3.new(direction.X, 0, direction.Z)
+	if direction.Magnitude &lt; 0.001 then
+		direction = Vector3.zAxis
+	end
+	root.AssemblyLinearVelocity = direction.Unit * power + Vector3.new(0, upwardPower or power * 0.35, 0)
+end
+
+-- ========================================================================
+-- Damage + ult charge
+-- ========================================================================
+
+local function addUltCharge(player, amount)
+	if not player then
+		return
+	end
+	local current = player:GetAttribute("UltCharge") or 0
+	player:SetAttribute("UltCharge", math.clamp(current + amount, 0, Config.Ult.MaxCharge))
+end
+
+--[[
+	Applies damage from attackerPlayer's character to victimCharacter.
+	opts (all optional):
+		KnockbackDir / KnockbackPower / KnockbackUp
+		StunTime
+		RagdollTime
+		SilentVFX (skip the generic hit flash)
+		Unblockable (grabs like Devour go straight through guards)
+]]
+function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
+	opts = opts or {}
+	local humanoid = Combat.Humanoid(victimCharacter)
+	if not humanoid or humanoid.Health &lt;= 0 then
+		return false
+	end
+	if victimCharacter:FindFirstChildOfClass("ForceField") then
+		return false
+	end
+
+	if not opts.Unblockable and tryBlock(attackerPlayer, victimCharacter, amount) then
+		return false
+	end
+
+	if attackerPlayer then
+		victimCharacter:SetAttribute("LastAttackerId", attackerPlayer.UserId)
+	end
+
+	humanoid:TakeDamage(amount)
+
+	-- Ult charge: attacker charges from damage dealt, victim from damage taken.
+	local effective = math.min(amount, humanoid.MaxHealth) -- one-shots don't insta-fill bars
+	addUltCharge(attackerPlayer, effective * Config.Ult.ChargePerDamageDealt)
+	local victimPlayer = Players:GetPlayerFromCharacter(victimCharacter)
+	if victimPlayer then
+		addUltCharge(victimPlayer, effective * Config.Ult.ChargePerDamageTaken)
+	end
+
+	if opts.StunTime then
+		Combat.Stun(victimCharacter, opts.StunTime)
+	end
+	if opts.RagdollTime then
+		Combat.Ragdoll(victimCharacter, opts.RagdollTime)
+	end
+	if opts.KnockbackDir and opts.KnockbackPower then
+		Combat.Knockback(victimCharacter, opts.KnockbackDir, opts.KnockbackPower, opts.KnockbackUp)
+	end
+
+	if not opts.SilentVFX then
+		local root = Combat.Root(victimCharacter)
+		if root then
+			VFX:FireAllClients("HitImpact", { Position = root.Position, Heavy = amount &gt;= 15 })
+		end
+	end
+
+	return true
+end
+
+-- ========================================================================
+-- Cleanup
+-- ========================================================================
+
+function Combat.ForgetCharacter(character)
+	stunTokens[character] = nil
+	ragdollTokens[character] = nil
+	busyTokens[character] = nil
+	blockLock[character] = nil
+end
+
+return Combat
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--[[
+	MapBuilder.lua
+	Generates the whole arena in code at server startup (the Rojo project
+	ships no place geometry).
+
+	Theme: ONIGASHIMA (Wano arc) on a full-moon night.
+
+	The island is real voxel terrain rising out of a real ocean. On it:
+	  - the horned skull mountain: sculpted brow, cheekbones, sunken glowing
+	    eyes, nostrils, a fanged gate-mouth with wooden doors, rock crags,
+	    bone piles, smoke, and a shrine on the summit plateau
+	  - Kaido's mansion: a five-tier Japanese castle on a stone foundation
+	    with lit windows, banners, a giant doorway and the jail cell
+	  - a lantern-lit village with market stalls, a stone road, banner
+	    poles, dead trees and a wooden port
+	  - a giant full moon behind the skull + bloom/color grading
+]]
+
+local Lighting = game:GetService("Lighting")
+
+-- Palette ----------------------------------------------------------------
+local GROUND = Color3.fromRGB(92, 92, 100)
+local SKULL = Color3.fromRGB(142, 138, 150)
+local SKULL_DARK = Color3.fromRGB(112, 108, 122)
+local BONE = Color3.fromRGB(226, 219, 200)
+local DARK = Color3.fromRGB(16, 14, 18)
+local WOOD_DARK = Color3.fromRGB(62, 46, 40)
+local WOOD_WARM = Color3.fromRGB(88, 64, 48)
+local ROOF_RED = Color3.fromRGB(118, 32, 36)
+local ROOF_SLATE = Color3.fromRGB(45, 48, 60)
+local TORII_RED = Color3.fromRGB(168, 42, 42)
+local STONE = Color3.fromRGB(74, 74, 82)
+local LANTERN_GLOW = Color3.fromRGB(255, 196, 110)
+local WINDOW_GLOW = Color3.fromRGB(255, 214, 140)
+local GOLD = Color3.fromRGB(212, 175, 55)
+local MOON = Color3.fromRGB(255, 243, 214)
+
+local MapBuilder = {}
+
+-- ========================================================================
+-- Builders
+-- ========================================================================
+
+local function part(props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for key, value in props do
+		p[key] = value
+	end
+	return p
+end
+
+local function wedge(props)
+	local w = Instance.new("WedgePart")
+	w.Anchored = true
+	w.TopSurface = Enum.SurfaceType.Smooth
+	w.BottomSurface = Enum.SurfaceType.Smooth
+	for key, value in props do
+		w[key] = value
+	end
+	return w
+end
+
+local function pointLight(parent, color, range, brightness)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Parent = parent
+	return light
+end
+
+-- Classic gabled roof: overhang slab + two wedges meeting at a ridge.
+local function gableRoof(parent, center, width, depth, height, color, yawDeg)
+	local base = CFrame.new(center) * CFrame.Angles(0, math.rad(yawDeg or 0), 0)
+	part({
+		Name = "RoofSlab",
+		Size = Vector3.new(width + 4, 1.2, depth + 4),
+		CFrame = base * CFrame.new(0, 0.6, 0),
+		Material = Enum.Material.Slate,
+		Color = color,
+		Parent = parent,
+	})
+	for _, side in { -1, 1 } do
+		wedge({
+			Name = "RoofSlope",
+			Size = Vector3.new(width + 2, height, depth / 2 + 1),
+			CFrame = base
+				* CFrame.new(0, 1.2 + height / 2, side * (depth / 2 + 1) / 2)
+				* CFrame.Angles(0, side == 1 and math.rad(180) or 0, 0),
+			Material = Enum.Material.Slate,
+			Color = color,
+			Parent = parent,
+		})
+	end
+end
+
+local function lantern(parent, position)
+	part({
+		Name = "LanternPost",
+		Size = Vector3.new(0.9, 9, 0.9),
+		Position = position + Vector3.new(0, 4.5, 0),
+		Material = Enum.Material.Wood,
+		Color = WOOD_DARK,
+		Parent = parent,
+	})
+	local lamp = part({
+		Name = "Lantern",
+		Size = Vector3.new(2.4, 3.2, 2.4),
+		Position = position + Vector3.new(0, 10, 0),
+		Material = Enum.Material.Neon,
+		Color = LANTERN_GLOW,
+		Parent = parent,
+	})
+	part({
+		Name = "LanternCap",
+		Size = Vector3.new(3, 0.8, 3),
+		Position = position + Vector3.new(0, 11.9, 0),
+		Material = Enum.Material.Wood,
+		Color = DARK,
+		Parent = parent,
+	})
+	pointLight(lamp, LANTERN_GLOW, 28, 1.1)
+end
+
+local function deadTree(parent, position, height)
+	local lean = math.random(-8, 8)
+	part({
+		Name = "TreeTrunk",
+		Size = Vector3.new(1.6, height, 1.6),
+		Position = position + Vector3.new(0, height / 2, 0),
+		Rotation = Vector3.new(lean, math.random(0, 359), lean / 2),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(38, 30, 28),
+		Parent = parent,
+	})
+	for b = 1, 3 do
+		part({
+			Name = "TreeBranch",
+			Size = Vector3.new(0.8, height * 0.45, 0.8),
+			Position = position + Vector3.new(math.random(-3, 3), height * (0.55 + b * 0.1), math.random(-3, 3)),
+			Rotation = Vector3.new(math.random(25, 65), math.random(0, 359), math.random(25, 65)),
+			Material = Enum.Material.Wood,
+			Color = Color3.fromRGB(34, 27, 25),
+			Parent = parent,
+		})
+	end
+end
+
+-- ========================================================================
+-- Terrain: the island itself and the sea around it
+-- ========================================================================
+
+local function buildTerrain()
+	local terrain = workspace.Terrain
+
+	-- The ocean. Everything below y = -4 outside the island is open water.
+	terrain:FillBlock(CFrame.new(0, -22, 0), Vector3.new(1800, 36, 1800), Enum.Material.Water)
+
+	-- The island: a basalt pedestal rising from the seabed, a sandstone
+	-- shore ring at the waterline and a slate top to fight on.
+	terrain:FillCylinder(CFrame.new(0, -20, 0), 44, 252, Enum.Material.Basalt)
+	terrain:FillCylinder(CFrame.new(0, -8, 0), 8, 246, Enum.Material.Sandstone)
+	-- Top surface ends at y = 0 so built structures sit on, not in, the ground.
+	terrain:FillCylinder(CFrame.new(0, -5, 0), 10, 236, Enum.Material.Slate)
+
+	-- Patches of dirt and cracked rock so the ground isn't uniform.
+	for _, patch in {
+		{ Position = Vector3.new(-90, 0, 70), Radius = 26, Material = Enum.Material.Ground },
+		{ Position = Vector3.new(120, 0, 110), Radius = 22, Material = Enum.Material.Ground },
+		{ Position = Vector3.new(-150, 0, -60), Radius = 30, Material = Enum.Material.Basalt },
+		{ Position = Vector3.new(60, 0, 170), Radius = 18, Material = Enum.Material.Ground },
+		{ Position = Vector3.new(170, 0, 30), Radius = 20, Material = Enum.Material.Basalt },
+		{ Position = Vector3.new(-60, 0, -170), Radius = 26, Material = Enum.Material.Basalt },
+		{ Position = Vector3.new(90, 0, -60), Radius = 16, Material = Enum.Material.Ground },
+	} do
+		terrain:FillBall(patch.Position, patch.Radius, patch.Material)
+	end
+
+	-- Rocky rise behind the skull so it reads as a mountain (kept far
+	-- enough back that it doesn't swallow the base outbuildings).
+	terrain:FillBall(Vector3.new(-60, -8, -195), 45, Enum.Material.Rock)
+	terrain:FillBall(Vector3.new(60, -8, -195), 45, Enum.Material.Rock)
+	terrain:FillBall(Vector3.new(0, -5, -205), 55, Enum.Material.Rock)
+end
+
+-- ========================================================================
+-- The skull mountain
+-- ========================================================================
+
+local function buildSkull(parent)
+	local model = Instance.new("Model")
+	model.Name = "SkullDome"
+
+	-- Cranium.
+	part({
+		Name = "Cranium",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(136, 136, 136),
+		Position = Vector3.new(0, 58, -128),
+		Material = Enum.Material.Rock,
+		Color = SKULL,
+		Parent = model,
+	})
+
+	-- Cheekbones bulging through the face.
+	for _, side in { -1, 1 } do
+		part({
+			Name = "Cheekbone",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(30, 30, 30),
+			Position = Vector3.new(36 * side, 44, -80),
+			Material = Enum.Material.Rock,
+			Color = SKULL_DARK,
+			Parent = model,
+		})
+	end
+
+	-- Brow ridges: angled slabs shading the eyes.
+	for _, side in { -1, 1 } do
+		part({
+			Name = "BrowRidge",
+			Size = Vector3.new(26, 9, 14),
+			Position = Vector3.new(25 * side, 88, -70),
+			Rotation = Vector3.new(-12, 0, 14 * side),
+			Material = Enum.Material.Rock,
+			Color = SKULL_DARK,
+			Parent = model,
+		})
+	end
+
+	-- Eyes: deep dark sockets with a menacing ember glow.
+	for _, side in { -1, 1 } do
+		local socket = part({
+			Name = "EyeSocket",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(15, 17, 17),
+			Position = Vector3.new(24 * side, 74, -66),
+			Rotation = Vector3.new(0, 90, 0),
+			Material = Enum.Material.SmoothPlastic,
+			Color = DARK,
+			Parent = model,
+		})
+		pointLight(socket, Color3.fromRGB(255, 70, 40), 34, 1.6)
+	end
+
+	-- Nostrils.
+	for _, side in { -1, 1 } do
+		part({
+			Name = "Nostril",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(7, 9, 7),
+			Position = Vector3.new(4.5 * side, 48, -60.5),
+			Material = Enum.Material.SmoothPlastic,
+			Color = DARK,
+			Parent = model,
+		})
+	end
+
+	-- Horns: five tapering, curving segments per side.
+	for _, side in { -1, 1 } do
+		for _, seg in {
+			{ X = 40, Y = 102, Tilt = 14, Size = Vector3.new(13, 26, 13) },
+			{ X = 48, Y = 116, Tilt = 32, Size = Vector3.new(11, 22, 11) },
+			{ X = 58, Y = 127, Tilt = 50, Size = Vector3.new(9, 18, 9) },
+			{ X = 69, Y = 134, Tilt = 68, Size = Vector3.new(6, 15, 6) },
+			{ X = 79, Y = 137, Tilt = 84, Size = Vector3.new(4, 12, 4) },
+		} do
+			part({
+				Name = "Horn",
+				Size = seg.Size,
+				Position = Vector3.new(seg.X * side, seg.Y, -128),
+				Rotation = Vector3.new(0, 0, -seg.Tilt * side),
+				Material = Enum.Material.Limestone,
+				Color = BONE,
+				Parent = model,
+			})
+		end
+	end
+
+	-- The gate-mouth: a dark maw with wooden doors left ajar.
+	part({
+		Name = "Maw",
+		Size = Vector3.new(50, 28, 34),
+		Position = Vector3.new(0, 14, -58),
+		Material = Enum.Material.SmoothPlastic,
+		Color = DARK,
+		Parent = model,
+	})
+	for _, side in { -1, 1 } do
+		part({
+			Name = "MouthDoor",
+			Size = Vector3.new(11, 23, 1.8),
+			Position = Vector3.new(12 * side, 11.5, -46),
+			Rotation = Vector3.new(0, -24 * side, 0),
+			Material = Enum.Material.WoodPlanks,
+			Color = WOOD_DARK,
+			Parent = model,
+		})
+	end
+	part({ -- stone threshold in front of the gate
+		Name = "MouthThreshold",
+		Size = Vector3.new(54, 1, 14),
+		Position = Vector3.new(0, 0.5, -38),
+		Material = Enum.Material.Basalt,
+		Color = STONE,
+		Parent = model,
+	})
+
+	-- Fangs framing the maw.
+	for i = 0, 6 do
+		local x = -21 + i * 7
+		part({
+			Name = "FangUpper",
+			Size = Vector3.new(5, 10, 3),
+			Position = Vector3.new(x, 25, -42),
+			Rotation = Vector3.new(0, 0, (i % 2 == 0) and 7 or -7),
+			Material = Enum.Material.Limestone,
+			Color = BONE,
+			Parent = model,
+		})
+		if i &lt; 6 then
+			part({
+				Name = "FangLower",
+				Size = Vector3.new(4, 8, 3),
+				Position = Vector3.new(x + 3.5, 4, -42),
+				Material = Enum.Material.Limestone,
+				Color = BONE,
+				Parent = model,
+			})
+		end
+	end
+
+	-- Braziers flanking the gate, with fire and drifting embers.
+	for _, side in { -1, 1 } do
+		local bowl = part({
+			Name = "Brazier",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(4, 7, 7),
+			Position = Vector3.new(36 * side, 2, -38),
+			Rotation = Vector3.new(0, 0, 90),
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(40, 38, 36),
+			Parent = model,
+		})
+		local fire = Instance.new("Fire")
+		fire.Size = 8
+		fire.Heat = 12
+		fire.Parent = bowl
+		pointLight(bowl, LANTERN_GLOW, 40, 1.4)
+
+		local embers = Instance.new("ParticleEmitter")
+		embers.Color = ColorSequence.new(Color3.fromRGB(255, 150, 60))
+		embers.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0) })
+		embers.Lifetime = NumberRange.new(1.5, 2.5)
+		embers.Rate = 5
+		embers.Speed = NumberRange.new(3, 6)
+		embers.SpreadAngle = Vector2.new(25, 25)
+		embers.LightEmission = 1
+		embers.Parent = bowl
+	end
+
+	-- Rock crags leaning against the skull's base.
+	for _, crag in {
+		{ Position = Vector3.new(-70, 14, -96), Size = Vector3.new(18, 42, 18), Tilt = Vector3.new(6, 20, -14) },
+		{ Position = Vector3.new(72, 12, -100), Size = Vector3.new(16, 38, 16), Tilt = Vector3.new(-4, -35, 15) },
+		{ Position = Vector3.new(-84, 10, -140), Size = Vector3.new(20, 34, 20), Tilt = Vector3.new(8, 60, -10) },
+		{ Position = Vector3.new(86, 11, -146), Size = Vector3.new(17, 36, 17), Tilt = Vector3.new(-6, -70, 12) },
+	} do
+		part({
+			Name = "Crag",
+			Size = crag.Size,
+			Position = crag.Position,
+			Rotation = crag.Tilt,
+			Material = Enum.Material.Rock,
+			Color = SKULL_DARK,
+			Parent = model,
+		})
+	end
+
+	-- Bone piles scattered near the gate.
+	for _, pile in {
+		Vector3.new(-52, 0, -76),
+		Vector3.new(56, 0, -80),
+		Vector3.new(-40, 0, -52),
+		Vector3.new(46, 0, -56),
+	} do
+		for b = 1, 3 do
+			part({
+				Name = "Bone",
+				Shape = (b == 3) and Enum.PartType.Cylinder or Enum.PartType.Ball,
+				Size = (b == 3) and Vector3.new(7, 1.6, 1.6) or Vector3.new(3 + b, 2.5 + b, 3 + b),
+				Position = pile + Vector3.new(math.random(-4, 4), 1, math.random(-4, 4)),
+				Rotation = Vector3.new(0, math.random(0, 359), (b == 3) and 12 or 0),
+				Material = Enum.Material.Limestone,
+				Color = BONE,
+				Parent = model,
+			})
+		end
+	end
+
+	-- Summit plateau with a tiny shrine and smoke drifting off the top.
+	local plateau = part({
+		Name = "SummitPlateau",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(4, 46, 46),
+		Position = Vector3.new(0, 124, -128),
+		Rotation = Vector3.new(0, 0, 90),
+		Material = Enum.Material.Rock,
+		Color = SKULL_DARK,
+		Parent = model,
+	})
+	part({
+		Name = "ShrineHut",
+		Size = Vector3.new(10, 8, 10),
+		Position = Vector3.new(-8, 130, -128),
+		Material = Enum.Material.WoodPlanks,
+		Color = WOOD_DARK,
+		Parent = model,
+	})
+	gableRoof(model, Vector3.new(-8, 134, -128), 10, 10, 4, ROOF_RED, 0)
+	lantern(model, Vector3.new(6, 126, -124))
+
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Color = ColorSequence.new(Color3.fromRGB(120, 115, 130))
+	smoke.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 6), NumberSequenceKeypoint.new(1, 16) })
+	smoke.Transparency = NumberSequence.new(0.75, 1)
+	smoke.Lifetime = NumberRange.new(6, 9)
+	smoke.Rate = 2
+	smoke.Speed = NumberRange.new(2, 4)
+	smoke.Acceleration = Vector3.new(1.5, 1, 0)
+	smoke.Parent = plateau
+
+	-- Low clouds clinging to the skull.
+	for _, cloud in {
+		{ Position = Vector3.new(-78, 108, -110), Size = Vector3.new(46, 12, 26) },
+		{ Position = Vector3.new(72, 96, -150), Size = Vector3.new(52, 12, 30) },
+		{ Position = Vector3.new(10, 118, -80), Size = Vector3.new(40, 10, 22) },
+	} do
+		part({
+			Name = "Cloud",
+			Shape = Enum.PartType.Ball,
+			Size = cloud.Size,
+			Position = cloud.Position,
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(200, 198, 215),
+			Transparency = 0.65,
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+
+	-- Outbuildings clustered around the base.
+	for _, spot in {
+		{ Position = Vector3.new(-98, 0, -104), Height = 22 },
+		{ Position = Vector3.new(-82, 0, -146), Height = 30 },
+		{ Position = Vector3.new(96, 0, -112), Height = 26 },
+		{ Position = Vector3.new(80, 0, -152), Height = 18 },
+	} do
+		local h = spot.Height
+		part({
+			Name = "Outbuilding",
+			Size = Vector3.new(20, h, 20),
+			Position = Vector3.new(spot.Position.X, h / 2 - 1, spot.Position.Z),
+			Material = Enum.Material.WoodPlanks,
+			Color = WOOD_DARK,
+			Parent = model,
+		})
+		gableRoof(model, Vector3.new(spot.Position.X, h - 1, spot.Position.Z), 20, 20, 6, ROOF_RED, 0)
+	end
+
+	model.Parent = parent
+end
+
+-- ========================================================================
+-- Kaido's mansion: a five-tier castle on a stone foundation
+-- ========================================================================
+
+local function buildMansion(parent)
+	local model = Instance.new("Model")
+	model.Name = "KaidoMansion"
+
+	local baseX, baseZ = 145, -35
+
+	-- Stone foundation, two stepped slabs.
+	part({
+		Name = "FoundationLower",
+		Size = Vector3.new(100, 10, 78),
+		Position = Vector3.new(baseX, 4, baseZ),
+		Material = Enum.Material.Cobblestone,
+		Color = STONE,
+		Parent = model,
+	})
+	part({
+		Name = "FoundationUpper",
+		Size = Vector3.new(90, 8, 68),
+		Position = Vector3.new(baseX, 13, baseZ),
+		Material = Enum.Material.Cobblestone,
+		Color = STONE,
+		Parent = model,
+	})
+
+	-- Five shrinking wooden tiers, each with an overhanging pagoda roof
+	-- and a row of warmly lit windows facing the plaza.
+	local tiers = {
+		{ Size = Vector3.new(78, 20, 58), Y = 27 },
+		{ Size = Vector3.new(62, 16, 46), Y = 45 },
+		{ Size = Vector3.new(48, 14, 36), Y = 60 },
+		{ Size = Vector3.new(34, 12, 26), Y = 73 },
+		{ Size = Vector3.new(22, 10, 18), Y = 84 },
+	}
+	for index, tier in tiers do
+		part({
+			Name = "Tier" .. index,
+			Size = tier.Size,
+			Position = Vector3.new(baseX, tier.Y, baseZ),
+			Material = Enum.Material.WoodPlanks,
+			Color = WOOD_DARK,
+			Parent = model,
+		})
+		part({
+			Name = "TierRoof" .. index,
+			Size = Vector3.new(tier.Size.X + 12, 3, tier.Size.Z + 12),
+			Position = Vector3.new(baseX, tier.Y + tier.Size.Y / 2 + 1.5, baseZ),
+			Material = Enum.Material.Slate,
+			Color = ROOF_RED,
+			Parent = model,
+		})
+
+		local windowCount = math.max(2, math.floor(tier.Size.Z / 12))
+		for w = 1, windowCount do
+			local offset = (w - (windowCount + 1) / 2) * 10
+			local window = part({
+				Name = "Window",
+				Size = Vector3.new(0.6, 4, 3),
+				Position = Vector3.new(baseX - tier.Size.X / 2 - 0.1, tier.Y + 1, baseZ + offset),
+				Material = Enum.Material.Neon,
+				Color = WINDOW_GLOW,
+				Parent = model,
+			})
+			if w == 1 then
+				pointLight(window, WINDOW_GLOW, 16, 0.5)
+			end
+		end
+	end
+
+	-- Crown: gabled top roof and a golden finial.
+	gableRoof(model, Vector3.new(baseX, 90.5, baseZ), 24, 20, 7, ROOF_RED, 0)
+	part({
+		Name = "GoldenFinial",
+		Size = Vector3.new(3, 8, 3),
+		Position = Vector3.new(baseX, 102, baseZ),
+		Material = Enum.Material.Metal,
+		Color = GOLD,
+		Parent = model,
+	})
+	part({
+		Name = "GoldenOrb",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(5, 5, 5),
+		Position = Vector3.new(baseX, 107, baseZ),
+		Material = Enum.Material.Metal,
+		Color = GOLD,
+		Parent = model,
+	})
+
+	-- Kaido-sized doorway facing the plaza, flanked by braziers.
+	part({
+		Name = "GreatDoor",
+		Size = Vector3.new(2.5, 22, 26),
+		Position = Vector3.new(baseX - 50.5, 11, baseZ),
+		Material = Enum.Material.SmoothPlastic,
+		Color = DARK,
+		Parent = model,
+	})
+	for _, side in { -1, 1 } do
+		local sconce = part({
+			Name = "DoorSconce",
+			Size = Vector3.new(2, 2.6, 2),
+			Position = Vector3.new(baseX - 52, 14, baseZ + 17 * side),
+			Material = Enum.Material.Neon,
+			Color = LANTERN_GLOW,
+			Parent = model,
+		})
+		pointLight(sconce, LANTERN_GLOW, 26, 1)
+	end
+
+	-- The jail cell (Eustass Kid's old room): recessed, barred, low
+	-- on the plaza-facing wall.
+	part({
+		Name = "JailCell",
+		Size = Vector3.new(2, 12, 16),
+		Position = Vector3.new(baseX - 50.5, 6, baseZ + 26),
+		Material = Enum.Material.SmoothPlastic,
+		Color = DARK,
+		Parent = model,
+	})
+	for i = 0, 4 do
+		part({
+			Name = "CellBar",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(12, 1, 1),
+			Position = Vector3.new(baseX - 51.8, 6, baseZ + 19.5 + i * 3.25),
+			Rotation = Vector3.new(0, 0, 90),
+			Material = Enum.Material.DiamondPlate,
+			Color = Color3.fromRGB(105, 105, 110),
+			Parent = model,
+		})
+	end
+
+	-- Beast Pirates banner poles at the front corners.
+	for _, side in { -1, 1 } do
+		part({
+			Name = "BannerPole",
+			Size = Vector3.new(1, 34, 1),
+			Position = Vector3.new(baseX - 46, 17, baseZ + 44 * side),
+			Material = Enum.Material.Metal,
+			Color = Color3.fromRGB(50, 48, 48),
+			Parent = model,
+		})
+		part({
+			Name = "Banner",
+			Size = Vector3.new(0.4, 12, 7),
+			Position = Vector3.new(baseX - 46, 27, baseZ + (44 * side) + 4),
+			Material = Enum.Material.Fabric,
+			Color = Color3.fromRGB(24, 22, 26),
+			Parent = model,
+		})
+	end
+
+	model.Parent = parent
+end
+
+-- ========================================================================
+-- Village, road, torii, port and scenery
+-- ========================================================================
+
+local function buildHouse(parent, x, z, yawDeg, width, height)
+	local depth = width * 0.8
+	part({
+		Name = "HouseBody",
+		Size = Vector3.new(width, height, depth),
+		Position = Vector3.new(x, height / 2 - 1, z),
+		Rotation = Vector3.new(0, yawDeg, 0),
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(72 + math.random(-12, 12), 54 + math.random(-10, 10), 44),
+		Parent = parent,
+	})
+	gableRoof(
+		parent,
+		Vector3.new(x, height - 1, z),
+		width,
+		depth,
+		math.max(4, height * 0.35),
+		(math.random() &lt; 0.4) and ROOF_SLATE or ROOF_RED,
+		yawDeg
+	)
+
+	local facing = CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(yawDeg), 0)
+	local door = facing * CFrame.new(0, height * 0.3, depth / 2 + 0.1)
+	part({
+		Name = "HouseDoor",
+		Size = Vector3.new(3, height * 0.6, 0.5),
+		CFrame = door,
+		Material = Enum.Material.Wood,
+		Color = DARK,
+		Parent = parent,
+	})
+	part({ -- noren cloth band above the door
+		Name = "Noren",
+		Size = Vector3.new(5, 1.6, 0.3),
+		CFrame = facing * CFrame.new(0, height * 0.62, depth / 2 + 0.2),
+		Material = Enum.Material.Fabric,
+		Color = (math.random() &lt; 0.5) and Color3.fromRGB(40, 48, 96) or Color3.fromRGB(140, 40, 40),
+		Parent = parent,
+	})
+	for _, side in { -1, 1 } do
+		local window = part({
+			Name = "HouseWindow",
+			Size = Vector3.new(2.6, 2.6, 0.4),
+			CFrame = facing * CFrame.new(side * width * 0.28, height * 0.55, depth / 2 + 0.1),
+			Material = Enum.Material.Neon,
+			Color = WINDOW_GLOW,
+			Parent = parent,
+		})
+		if side == 1 and math.random() &lt; 0.6 then
+			pointLight(window, WINDOW_GLOW, 14, 0.5)
+		end
+	end
+end
+
+local function buildStall(parent, x, z, yawDeg)
+	local base = CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(yawDeg), 0)
+	part({
+		Name = "StallCounter",
+		Size = Vector3.new(8, 3, 3.5),
+		CFrame = base * CFrame.new(0, 1.5, 0),
+		Material = Enum.Material.WoodPlanks,
+		Color = WOOD_WARM,
+		Parent = parent,
+	})
+	part({
+		Name = "StallAwning",
+		Size = Vector3.new(9.5, 0.5, 6),
+		CFrame = base * CFrame.new(0, 6.4, -0.6) * CFrame.Angles(math.rad(-12), 0, 0),
+		Material = Enum.Material.Fabric,
+		Color = (math.random() &lt; 0.5) and Color3.fromRGB(150, 46, 46) or Color3.fromRGB(46, 56, 110),
+		Parent = parent,
+	})
+	for _, side in { -1, 1 } do
+		part({
+			Name = "StallPost",
+			Size = Vector3.new(0.7, 6.5, 0.7),
+			CFrame = base * CFrame.new(side * 4.2, 3.25, -1.6),
+			Material = Enum.Material.Wood,
+			Color = WOOD_DARK,
+			Parent = parent,
+		})
+	end
+	for b = 1, 2 do
+		part({
+			Name = "SakeBarrel",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(3.4, 2.8, 2.8),
+			CFrame = base * CFrame.new(5.8, 1.7, b * 2 - 3) * CFrame.Angles(0, 0, math.rad(90)),
+			Material = Enum.Material.Wood,
+			Color = WOOD_WARM,
+			Parent = parent,
+		})
+	end
+end
+
+local function buildVillage(parent)
+	local model = Instance.new("Model")
+	model.Name = "Village"
+
+	-- Houses along two arcs in the front half of the island, leaving the
+	-- entrance road (x ~ 0) clear.
+	for i = 1, 11 do
+		local angle = 8 + i * 15
+		if angle &lt; 80 or angle &gt; 100 then
+			local radius = (i % 2 == 0) and 140 or 180
+			local rad = math.rad(angle)
+			local x, z = math.cos(rad) * radius, math.sin(rad) * radius
+			buildHouse(model, x, z, -angle + 90, math.random(16, 24), math.random(12, 20))
+			if i % 2 == 1 then
+				lantern(model, Vector3.new(x * 0.82, 0, z * 0.82))
+			end
+		end
+	end
+
+	-- Market stalls flanking the road.
+	buildStall(model, 18, 96, -90)
+	buildStall(model, -17, 118, 90)
+	buildStall(model, 21, 144, -90)
+
+	-- Stone road from the torii gate to the plaza.
+	for z = 64, 180, 9 do
+		part({
+			Name = "RoadSlab",
+			Size = Vector3.new(10, 1, 8),
+			Position = Vector3.new(math.random(-10, 10) / 10, 0.5, z),
+			Rotation = Vector3.new(0, math.random(-6, 6), 0),
+			Material = Enum.Material.Basalt,
+			Color = STONE,
+			Parent = model,
+		})
+	end
+
+	-- Skull-topped banner poles lining the road.
+	for _, pole in {
+		Vector3.new(-10, 0, 70),
+		Vector3.new(10, 0, 104),
+		Vector3.new(-10, 0, 138),
+		Vector3.new(10, 0, 166),
+	} do
+		part({
+			Name = "SpikePole",
+			Size = Vector3.new(0.9, 14, 0.9),
+			Position = pole + Vector3.new(0, 7, 0),
+			Material = Enum.Material.Wood,
+			Color = Color3.fromRGB(40, 34, 32),
+			Parent = model,
+		})
+		part({
+			Name = "PoleSkull",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.6, 2.6, 2.6),
+			Position = pole + Vector3.new(0, 15, 0),
+			Material = Enum.Material.Limestone,
+			Color = BONE,
+			Parent = model,
+		})
+	end
+
+	-- Torii gate marking the entrance road.
+	for _, side in { -1, 1 } do
+		part({
+			Name = "ToriiPillar",
+			Size = Vector3.new(5, 32, 5),
+			Position = Vector3.new(17 * side, 16, 186),
+			Material = Enum.Material.Wood,
+			Color = TORII_RED,
+			Parent = model,
+		})
+	end
+	part({
+		Name = "ToriiBeam",
+		Size = Vector3.new(46, 4, 6),
+		Position = Vector3.new(0, 30, 186),
+		Material = Enum.Material.Wood,
+		Color = TORII_RED,
+		Parent = model,
+	})
+	part({
+		Name = "ToriiTop",
+		Size = Vector3.new(56, 5, 8),
+		Position = Vector3.new(0, 36, 186),
+		Material = Enum.Material.Wood,
+		Color = DARK,
+		Parent = model,
+	})
+
+	-- Wooden port stretching into the sea past the torii (scenery).
+	for i = 0, 9 do
+		part({
+			Name = "DockPlank",
+			Size = Vector3.new(12, 1, 6),
+			Position = Vector3.new(0, 1, 226 + i * 6.5),
+			Material = Enum.Material.WoodPlanks,
+			Color = WOOD_WARM,
+			Parent = model,
+		})
+		if i % 3 == 0 then
+			for _, side in { -1, 1 } do
+				part({
+					Name = "DockPost",
+					Size = Vector3.new(1.4, 14, 1.4),
+					Position = Vector3.new(6.5 * side, -4, 226 + i * 6.5),
+					Material = Enum.Material.Wood,
+					Color = WOOD_DARK,
+					Parent = model,
+				})
+			end
+		end
+	end
+	lantern(model, Vector3.new(5, 1.5, 284))
+	-- A moored rowboat.
+	part({
+		Name = "BoatHull",
+		Size = Vector3.new(6, 3, 14),
+		Position = Vector3.new(14, -3, 274),
+		Rotation = Vector3.new(0, 8, 0),
+		Material = Enum.Material.WoodPlanks,
+		Color = WOOD_DARK,
+		Parent = model,
+	})
+	for _, offset in { -3.5, 2 } do
+		part({
+			Name = "BoatBench",
+			Size = Vector3.new(5, 0.6, 1.6),
+			Position = Vector3.new(14, -1.4, 274 + offset),
+			Rotation = Vector3.new(0, 8, 0),
+			Material = Enum.Material.Wood,
+			Color = WOOD_WARM,
+			Parent = model,
+		})
+	end
+
+	-- Dead trees.
+	for _, spot in {
+		Vector3.new(-120, 0, 55),
+		Vector3.new(-165, 0, 125),
+		Vector3.new(115, 0, 155),
+		Vector3.new(165, 0, 95),
+		Vector3.new(-95, 0, -60),
+		Vector3.new(-150, 0, -95),
+		Vector3.new(100, 0, -165),
+		Vector3.new(60, 0, 190),
+	} do
+		deadTree(model, spot, math.random(11, 17))
+	end
+
+	-- Scattered boulders for cover (kept clear of road, plaza &amp; buildings).
+	local placed = 0
+	while placed &lt; 14 do
+		local angle = math.rad(math.random(0, 359))
+		local radius = math.random(92, 200)
+		local x, z = math.cos(angle) * radius, math.sin(angle) * radius
+		local nearMansion = math.abs(x - 145) &lt; 70 and math.abs(z + 35) &lt; 60
+		local nearSkull = z &lt; -55 and math.abs(x) &lt; 100
+		local nearRoad = math.abs(x) &lt; 14 and z &gt; 50
+		if not (nearMansion or nearSkull or nearRoad) then
+			local size = math.random(5, 13)
+			part({
+				Name = "Boulder",
+				Size = Vector3.new(size, size * 0.8, size),
+				Position = Vector3.new(x, size * 0.3, z),
+				Rotation = Vector3.new(math.random(-15, 15), math.random(0, 359), math.random(-15, 15)),
+				Material = Enum.Material.Rock,
+				Color = GROUND,
+				Parent = model,
+			})
+			placed += 1
+		end
+	end
+
+	model.Parent = parent
+end
+
+-- ========================================================================
+-- The fighting plaza
+-- ========================================================================
+
+local function buildPlaza(parent)
+	local model = Instance.new("Model")
+	model.Name = "Plaza"
+
+	-- Raised so its surface clears the voxel terrain (top at y = 1.5).
+	part({
+		Name = "PlazaFloor",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(3, 118, 118),
+		Position = Vector3.new(0, 0, 0),
+		Rotation = Vector3.new(0, 0, 90),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(82, 82, 92),
+		Parent = model,
+	})
+	part({ -- dark center emblem
+		Name = "PlazaEmblem",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 26, 26),
+		Position = Vector3.new(0, 1.56, 0),
+		Rotation = Vector3.new(0, 0, 90),
+		Material = Enum.Material.Basalt,
+		Color = Color3.fromRGB(52, 52, 62),
+		Parent = model,
+	})
+
+	-- Kerb stones ringing the plaza.
+	for i = 1, 14 do
+		local angle = math.rad(i * (360 / 14))
+		part({
+			Name = "PlazaKerb",
+			Size = Vector3.new(11, 1.8, 4),
+			Position = Vector3.new(math.cos(angle) * 59, 1.2, math.sin(angle) * 59),
+			Rotation = Vector3.new(0, -math.deg(angle) + 90, 0),
+			Material = Enum.Material.Cobblestone,
+			Color = STONE,
+			Parent = model,
+		})
+	end
+
+	-- Lanterns ringing the arena.
+	for i = 1, 8 do
+		local angle = math.rad(i * 45 + 22.5)
+		lantern(model, Vector3.new(math.cos(angle) * 66, 0, math.sin(angle) * 66))
+	end
+
+	model.Parent = parent
+end
+
+-- ========================================================================
+-- Sky: the full moon behind the skull
+-- ========================================================================
+
+local function buildSky(parent)
+	local moon = part({
+		Name = "Moon",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(300, 300, 300),
+		Position = Vector3.new(0, 380, -950),
+		Material = Enum.Material.Neon,
+		Color = MOON,
+		CanCollide = false,
+		Parent = parent,
+	})
+	part({
+		Name = "MoonHalo",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(380, 380, 380),
+		Position = moon.Position,
+		Material = Enum.Material.Neon,
+		Color = MOON,
+		Transparency = 0.88,
+		CanCollide = false,
+		Parent = parent,
+	})
+end
+
+-- ========================================================================
+-- Assembly
+-- ========================================================================
+
+function MapBuilder.Build()
+	if workspace:FindFirstChild("Arena") then
+		return
+	end
+
+	local arena = Instance.new("Folder")
+	arena.Name = "Arena"
+
+	buildTerrain()
+	buildPlaza(arena)
+	buildSkull(arena)
+	buildMansion(arena)
+	buildVillage(arena)
+	buildSky(arena)
+
+	-- Invisible border walls (inside the island's coastline).
+	for _, wall in {
+		{ Size = Vector3.new(440, 160, 4), Position = Vector3.new(0, 80, -220) },
+		{ Size = Vector3.new(440, 160, 4), Position = Vector3.new(0, 80, 220) },
+		{ Size = Vector3.new(4, 160, 440), Position = Vector3.new(-220, 80, 0) },
+		{ Size = Vector3.new(4, 160, 440), Position = Vector3.new(220, 80, 0) },
+	} do
+		part({
+			Name = "BorderWall",
+			Size = wall.Size,
+			Position = wall.Position,
+			Transparency = 1,
+			Parent = arena,
+		})
+	end
+
+	-- Kill plane far below the seabed.
+	local killPlane = part({
+		Name = "KillPlane",
+		Size = Vector3.new(2000, 4, 2000),
+		Position = Vector3.new(0, -90, 0),
+		Transparency = 1,
+		CanCollide = false,
+		Parent = arena,
+	})
+	killPlane.Touched:Connect(function(hit)
+		local model = hit:FindFirstAncestorOfClass("Model")
+		local humanoid = model and model:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Health = 0
+		end
+	end)
+
+	-- Spawns around the central plaza.
+	for i = 1, 8 do
+		local angle = math.rad(i * 45)
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Size = Vector3.new(6, 1, 6)
+		spawn.Position = Vector3.new(math.cos(angle) * 45, 2.5, math.sin(angle) * 45)
+		spawn.Anchored = true
+		spawn.CanCollide = false
+		spawn.Transparency = 1
+		spawn.Neutral = true
+		spawn.Duration = 0 -- spawn protection is handled by the combat server
+		spawn.Parent = arena
+	end
+
+	arena.Parent = workspace
+
+	-- Full-moon Onigashima night + cinematic grading.
+	Lighting.ClockTime = 0
+	Lighting.Brightness = 1.4
+	Lighting.ExposureCompensation = 0.2
+	Lighting.OutdoorAmbient = Color3.fromRGB(88, 96, 132)
+	Lighting.Ambient = Color3.fromRGB(48, 48, 64)
+	Lighting.GlobalShadows = true
+
+	if not Lighting:FindFirstChildOfClass("Atmosphere") then
+		local atmosphere = Instance.new("Atmosphere")
+		atmosphere.Density = 0.34
+		atmosphere.Haze = 2.2
+		atmosphere.Color = Color3.fromRGB(150, 138, 170)
+		atmosphere.Decay = Color3.fromRGB(66, 60, 96)
+		atmosphere.Parent = Lighting
+	end
+	if not Lighting:FindFirstChildOfClass("BloomEffect") then
+		local bloom = Instance.new("BloomEffect")
+		bloom.Intensity = 0.55
+		bloom.Threshold = 1.1
+		bloom.Size = 40
+		bloom.Parent = Lighting
+	end
+	if not Lighting:FindFirstChildOfClass("ColorCorrectionEffect") then
+		local grading = Instance.new("ColorCorrectionEffect")
+		grading.Contrast = 0.06
+		grading.Saturation = -0.08
+		grading.TintColor = Color3.fromRGB(235, 240, 255)
+		grading.Parent = Lighting
+	end
+end
+
+return MapBuilder
+</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX17"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX16"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX12"><Properties><string name="Name">Client</string><ProtectedString name="Source">--[[
+	init.client.lua
+	Client entry point: input handling + HUD/VFX bootstrapping.
+
+	Controls:
+		Left Mouse  - M1 combo
+		1 / 2 / 3 / 4 - skills
+		Q           - dash
+		F (hold)    - block
+		G           - activate Gear 5 (when the ult bar is full)
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Remotes)
+
+local HUD = require(script.HUD)
+local VFXClient = require(script.VFXClient)
+local CharacterSelect = require(script.CharacterSelect)
+
+local LocalPlayer = Players.LocalPlayer
+
+local UseSkill = Remotes.get("UseSkill")
+local M1 = Remotes.get("M1")
+local ActivateUlt = Remotes.get("ActivateUlt")
+local Dash = Remotes.get("Dash")
+local Block = Remotes.get("Block")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+HUD.Init()
+VFXClient.Init()
+CharacterSelect.Init()
+
+local SKILL_KEYS = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+	[Enum.KeyCode.Four] = 4,
+}
+
+-- The server is authoritative; this only avoids spamming remotes while
+-- visibly stunned / mid-move.
+local function canAct()
+	local character = LocalPlayer.Character
+	if not character then
+		return false
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health &lt;= 0 then
+		return false
+	end
+	return not (
+		character:GetAttribute("Stunned")
+		or character:GetAttribute("Ragdolled")
+		or character:GetAttribute("Rubberized")
+		or character:GetAttribute("Busy")
+	)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if canAct() then
+			M1:FireServer()
+		end
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.G then
+		ActivateUlt:FireServer()
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.Q then
+		if canAct() then
+			Dash:FireServer()
+		end
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.F then
+		Block:FireServer(true)
+		return
+	end
+
+	local slot = SKILL_KEYS[input.KeyCode]
+	if slot and canAct() then
+		UseSkill:FireServer(slot)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.F then
+		Block:FireServer(false)
+	end
+end)
+
+HUDUpdate.OnClientEvent:Connect(function(kind, ...)
+	if kind == "Cooldown" then
+		HUD.SetCooldown(...)
+	elseif kind == "UltState" then
+		HUD.SetUltState(...)
+	elseif kind == "DashCooldown" then
+		HUD.SetDashCooldown(...)
+	end
+end)
+</ProtectedString></Properties><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">CharacterSelect</string><ProtectedString name="Source">--[[
+	CharacterSelect.lua
+	A topbar button (sitting beside the core chat button) that opens a
+	character-select menu built from Config.Roster. Selecting an unlocked
+	character tells the server, which reassigns the moveset and respawns.
+	Locked characters show as "COMING SOON".
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local LocalPlayer = Players.LocalPlayer
+local SelectCharacter = Remotes.get("SelectCharacter")
+
+local BG = Color3.fromRGB(25, 25, 30)
+local PANEL = Color3.fromRGB(32, 32, 40)
+local ACCENT = Color3.fromRGB(220, 60, 60)
+local LOCKED = Color3.fromRGB(90, 90, 100)
+
+local CharacterSelect = {}
+
+local cards = {} -- [id] = { select button, stroke, statusLabel }
+local panel, backdrop, topButton
+
+local function corner(instance, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = instance
+end
+
+local function pad(instance, px)
+	local p = Instance.new("UIPadding")
+	p.PaddingTop = UDim.new(0, px)
+	p.PaddingBottom = UDim.new(0, px)
+	p.PaddingLeft = UDim.new(0, px)
+	p.PaddingRight = UDim.new(0, px)
+	p.Parent = instance
+end
+
+-- ========================================================================
+-- Selection state
+-- ========================================================================
+
+local function currentId()
+	return LocalPlayer:GetAttribute("SelectedCharacter") or "Luffy"
+end
+
+local function refreshStates()
+	local selected = currentId()
+	for _, entry in Config.Roster do
+		local card = cards[entry.Id]
+		if card then
+			if entry.Locked then
+				card.stroke.Enabled = false
+			elseif entry.Id == selected then
+				card.button.Text = "SELECTED"
+				card.button.BackgroundColor3 = entry.Color
+				card.stroke.Enabled = true
+				card.stroke.Color = entry.Color
+			else
+				card.button.Text = "SELECT"
+				card.button.BackgroundColor3 = BG
+				card.stroke.Enabled = false
+			end
+		end
+	end
+	-- Tint the topbar button to the current character's color.
+	local entry
+	for _, e in Config.Roster do
+		if e.Id == selected then
+			entry = e
+			break
+		end
+	end
+	if topButton and entry then
+		topButton.Text = entry.Name:sub(1, 1)
+		topButton.BackgroundColor3 = entry.Color
+	end
+end
+
+-- ========================================================================
+-- Open / close
+-- ========================================================================
+
+local function setOpen(open)
+	backdrop.Visible = open
+	if open then
+		refreshStates()
+		panel.Size = UDim2.fromOffset(0, 0)
+		panel.BackgroundTransparency = 1
+		TweenService:Create(panel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.fromOffset(720, 460),
+			BackgroundTransparency = 0,
+		}):Play()
+	end
+end
+
+-- ========================================================================
+-- Card construction
+-- ========================================================================
+
+local function buildCard(entry, parent, order)
+	local card = Instance.new("Frame")
+	card.LayoutOrder = order
+	card.Size = UDim2.fromOffset(196, 356)
+	card.BackgroundColor3 = PANEL
+	card.Parent = parent
+	corner(card, 10)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = entry.Color
+	stroke.Thickness = 2.5
+	stroke.Enabled = false
+	stroke.Parent = card
+
+	-- Color header with an initial as a stand-in portrait.
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 96)
+	header.BackgroundColor3 = entry.Locked and LOCKED or entry.Color
+	header.BorderSizePixel = 0
+	header.Parent = card
+	corner(header, 10)
+
+	local initial = Instance.new("TextLabel")
+	initial.BackgroundTransparency = 1
+	initial.Size = UDim2.new(1, 0, 1, 0)
+	initial.Font = Enum.Font.GothamBlack
+	initial.TextSize = 54
+	initial.TextColor3 = Color3.new(1, 1, 1)
+	initial.TextTransparency = 0.15
+	initial.Text = entry.Locked and "?" or entry.Name:sub(1, 1)
+	initial.Parent = header
+
+	local name = Instance.new("TextLabel")
+	name.BackgroundTransparency = 1
+	name.Position = UDim2.new(0, 10, 0, 104)
+	name.Size = UDim2.new(1, -20, 0, 20)
+	name.Font = Enum.Font.GothamBold
+	name.TextSize = 15
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextColor3 = Color3.new(1, 1, 1)
+	name.Text = entry.Locked and "???" or entry.Name
+	name.Parent = card
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.new(0, 10, 0, 124)
+	title.Size = UDim2.new(1, -20, 0, 16)
+	title.Font = Enum.Font.Gotham
+	title.TextSize = 11
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = entry.Color
+	title.Text = entry.Locked and "Locked" or entry.Title
+	title.Parent = card
+
+	-- Move list.
+	local moves = Instance.new("TextLabel")
+	moves.BackgroundTransparency = 1
+	moves.Position = UDim2.new(0, 10, 0, 146)
+	moves.Size = UDim2.new(1, -20, 0, 150)
+	moves.Font = Enum.Font.Gotham
+	moves.TextSize = 11
+	moves.TextXAlignment = Enum.TextXAlignment.Left
+	moves.TextYAlignment = Enum.TextYAlignment.Top
+	moves.TextColor3 = Color3.fromRGB(200, 200, 210)
+	moves.RichText = true
+	moves.TextWrapped = true
+	if entry.Locked then
+		moves.Text = "Moveset hidden until\nthis fighter is released."
+		moves.TextColor3 = Color3.fromRGB(150, 150, 160)
+	else
+		local lines = {}
+		for i, move in entry.Moves do
+			table.insert(lines, ("&lt;b&gt;%d&lt;/b&gt;  %s"):format(i, move))
+		end
+		table.insert(lines, ("&lt;b&gt;ULT&lt;/b&gt;  %s"):format(entry.Ult or "—"))
+		moves.Text = table.concat(lines, "\n")
+	end
+	moves.Parent = card
+
+	-- Select / locked button.
+	local button = Instance.new("TextButton")
+	button.AnchorPoint = Vector2.new(0.5, 1)
+	button.Position = UDim2.new(0.5, 0, 1, -10)
+	button.Size = UDim2.new(1, -20, 0, 34)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.AutoButtonColor = not entry.Locked
+	button.Parent = card
+	corner(button, 7)
+
+	if entry.Locked then
+		button.Text = "COMING SOON"
+		button.BackgroundColor3 = LOCKED
+		button.Active = false
+	else
+		button.Text = "SELECT"
+		button.BackgroundColor3 = BG
+		button.Activated:Connect(function()
+			SelectCharacter:FireServer(entry.Id)
+			setOpen(false)
+		end)
+	end
+
+	cards[entry.Id] = { button = button, stroke = stroke }
+end
+
+-- ========================================================================
+-- Build
+-- ========================================================================
+
+function CharacterSelect.Init()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CharacterSelectGui"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 20
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	-- Topbar button, sitting just right of the core chat button.
+	topButton = Instance.new("TextButton")
+	topButton.Name = "CharacterButton"
+	topButton.Position = UDim2.fromOffset(92, 2)
+	topButton.Size = UDim2.fromOffset(32, 32)
+	topButton.Font = Enum.Font.GothamBlack
+	topButton.TextSize = 18
+	topButton.TextColor3 = Color3.new(1, 1, 1)
+	topButton.Text = "L"
+	topButton.BackgroundColor3 = ACCENT
+	topButton.AutoButtonColor = true
+	topButton.Parent = gui
+	corner(topButton, 16)
+
+	local topStroke = Instance.new("UIStroke")
+	topStroke.Color = Color3.new(1, 1, 1)
+	topStroke.Thickness = 1.5
+	topStroke.Transparency = 0.4
+	topStroke.Parent = topButton
+
+	local tip = Instance.new("TextLabel")
+	tip.BackgroundTransparency = 1
+	tip.AnchorPoint = Vector2.new(0.5, 0)
+	tip.Position = UDim2.new(0.5, 0, 1, 2)
+	tip.Size = UDim2.fromOffset(80, 12)
+	tip.Font = Enum.Font.GothamMedium
+	tip.TextSize = 9
+	tip.TextColor3 = Color3.fromRGB(220, 220, 230)
+	tip.TextStrokeTransparency = 0.5
+	tip.Text = "CHARACTER"
+	tip.Parent = topButton
+
+	-- Modal backdrop.
+	backdrop = Instance.new("TextButton")
+	backdrop.Name = "Backdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.45
+	backdrop.Text = ""
+	backdrop.AutoButtonColor = false
+	backdrop.Visible = false
+	backdrop.Parent = gui
+
+	-- Panel.
+	panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromOffset(720, 460)
+	panel.BackgroundColor3 = BG
+	panel.Parent = backdrop
+	corner(panel, 14)
+	pad(panel, 16)
+
+	local heading = Instance.new("TextLabel")
+	heading.BackgroundTransparency = 1
+	heading.Size = UDim2.new(1, 0, 0, 30)
+	heading.Font = Enum.Font.GothamBlack
+	heading.TextSize = 22
+	heading.TextXAlignment = Enum.TextXAlignment.Left
+	heading.TextColor3 = Color3.new(1, 1, 1)
+	heading.Text = "SELECT CHARACTER"
+	heading.Parent = panel
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.AnchorPoint = Vector2.new(1, 0)
+	closeButton.Position = UDim2.new(1, 0, 0, 0)
+	closeButton.Size = UDim2.fromOffset(30, 30)
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 18
+	closeButton.TextColor3 = Color3.new(1, 1, 1)
+	closeButton.Text = "X"
+	closeButton.BackgroundColor3 = ACCENT
+	closeButton.Parent = panel
+	corner(closeButton, 7)
+
+	-- Scrolling row of cards.
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Position = UDim2.new(0, 0, 0, 42)
+	scroller.Size = UDim2.new(1, 0, 1, -42)
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.ScrollingDirection = Enum.ScrollingDirection.X
+	scroller.AutomaticCanvasSize = Enum.AutomaticSize.X
+	scroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroller.ScrollBarThickness = 6
+	scroller.Parent = panel
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 12)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Parent = scroller
+
+	for order, entry in Config.Roster do
+		buildCard(entry, scroller, order)
+	end
+
+	-- Wiring.
+	topButton.Activated:Connect(function()
+		setOpen(not backdrop.Visible)
+	end)
+	closeButton.Activated:Connect(function()
+		setOpen(false)
+	end)
+	backdrop.Activated:Connect(function()
+		setOpen(false)
+	end)
+	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
+
+	refreshStates()
+end
+
+return CharacterSelect
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">HUD</string><ProtectedString name="Source">--[[
+	HUD.lua
+	Builds the combat HUD entirely in code:
+	  - 4 skill slots (keys 1-4) with name, keybind and cooldown sweep
+	  - ult charge bar that flashes "GEAR 5 READY - PRESS G" at full charge
+	  - slot names/colors swap automatically while Gear 5 is active
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local LocalPlayer = Players.LocalPlayer
+
+local BG = Color3.fromRGB(25, 25, 30)
+local ACCENT_BASE = Color3.fromRGB(220, 60, 60)   -- straw hat red
+local ACCENT_GEAR5 = Color3.fromRGB(255, 255, 255)
+local ULT_COLOR = Color3.fromRGB(255, 200, 60)
+
+local BLOCK_COLOR = Color3.fromRGB(180, 210, 255)
+
+local HUD = {}
+
+local slots = {}       -- [slot] = { frame, nameLabel, cooldownOverlay, cooldownLabel }
+local ultFill, ultLabel, ultBar
+local blockFill
+local dashChip
+local gear5Active = false
+
+local function corner(instance, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = instance
+end
+
+local function slotName(slot)
+	local cfg = gear5Active and Config.Gear5[slot] or Config.Base[slot]
+	return cfg and cfg.Name or "?"
+end
+
+local function refreshSlotNames()
+	for slot, ui in slots do
+		ui.nameLabel.Text = slotName(slot)
+		ui.keyLabel.TextColor3 = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
+		ui.stroke.Color = gear5Active and ACCENT_GEAR5 or ACCENT_BASE
+	end
+end
+
+-- ========================================================================
+-- Construction
+-- ========================================================================
+
+function HUD.Init()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CombatHUD"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	-- Skill bar ----------------------------------------------------------
+	local bar = Instance.new("Frame")
+	bar.Name = "SkillBar"
+	bar.AnchorPoint = Vector2.new(0.5, 1)
+	bar.Position = UDim2.new(0.5, 0, 1, -18)
+	bar.Size = UDim2.new(0, 4 * 92 + 3 * 10, 0, 92)
+	bar.BackgroundTransparency = 1
+	bar.Parent = gui
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 10)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Parent = bar
+
+	for slot = 1, 4 do
+		local frame = Instance.new("Frame")
+		frame.Name = "Slot" .. slot
+		frame.LayoutOrder = slot
+		frame.Size = UDim2.new(0, 92, 0, 92)
+		frame.BackgroundColor3 = BG
+		frame.BackgroundTransparency = 0.15
+		frame.Parent = bar
+		corner(frame, 10)
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = ACCENT_BASE
+		stroke.Thickness = 1.5
+		stroke.Transparency = 0.3
+		stroke.Parent = frame
+
+		local keyLabel = Instance.new("TextLabel")
+		keyLabel.BackgroundTransparency = 1
+		keyLabel.Position = UDim2.new(0, 6, 0, 4)
+		keyLabel.Size = UDim2.new(0, 24, 0, 24)
+		keyLabel.Font = Enum.Font.GothamBlack
+		keyLabel.TextSize = 20
+		keyLabel.TextColor3 = ACCENT_BASE
+		keyLabel.Text = tostring(slot)
+		keyLabel.TextXAlignment = Enum.TextXAlignment.Left
+		keyLabel.Parent = frame
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.AnchorPoint = Vector2.new(0.5, 1)
+		nameLabel.Position = UDim2.new(0.5, 0, 1, -6)
+		nameLabel.Size = UDim2.new(1, -10, 0, 40)
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.TextSize = 12
+		nameLabel.TextWrapped = true
+		nameLabel.TextColor3 = Color3.new(1, 1, 1)
+		nameLabel.Text = ""
+		nameLabel.Parent = frame
+
+		-- Cooldown overlay sweeps from full height down to zero.
+		local overlay = Instance.new("Frame")
+		overlay.Name = "Cooldown"
+		overlay.AnchorPoint = Vector2.new(0, 1)
+		overlay.Position = UDim2.new(0, 0, 1, 0)
+		overlay.Size = UDim2.new(1, 0, 0, 0)
+		overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+		overlay.BackgroundTransparency = 0.4
+		overlay.BorderSizePixel = 0
+		overlay.ZIndex = 2
+		overlay.Parent = frame
+		corner(overlay, 10)
+
+		local cooldownLabel = Instance.new("TextLabel")
+		cooldownLabel.BackgroundTransparency = 1
+		cooldownLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+		cooldownLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+		cooldownLabel.Size = UDim2.new(1, 0, 0, 30)
+		cooldownLabel.Font = Enum.Font.GothamBlack
+		cooldownLabel.TextSize = 24
+		cooldownLabel.TextColor3 = Color3.new(1, 1, 1)
+		cooldownLabel.Text = ""
+		cooldownLabel.ZIndex = 3
+		cooldownLabel.Parent = frame
+
+		slots[slot] = {
+			frame = frame,
+			stroke = stroke,
+			keyLabel = keyLabel,
+			nameLabel = nameLabel,
+			overlay = overlay,
+			cooldownLabel = cooldownLabel,
+			cooldownToken = 0,
+		}
+	end
+
+	-- Ult bar -------------------------------------------------------------
+	ultBar = Instance.new("Frame")
+	ultBar.Name = "UltBar"
+	ultBar.AnchorPoint = Vector2.new(0.5, 1)
+	ultBar.Position = UDim2.new(0.5, 0, 1, -120)
+	ultBar.Size = UDim2.new(0, 340, 0, 18)
+	ultBar.BackgroundColor3 = BG
+	ultBar.BackgroundTransparency = 0.15
+	ultBar.Parent = gui
+	corner(ultBar, 9)
+
+	ultFill = Instance.new("Frame")
+	ultFill.BackgroundColor3 = ULT_COLOR
+	ultFill.BorderSizePixel = 0
+	ultFill.Size = UDim2.new(0, 0, 1, 0)
+	ultFill.Parent = ultBar
+	corner(ultFill, 9)
+
+	ultLabel = Instance.new("TextLabel")
+	ultLabel.BackgroundTransparency = 1
+	ultLabel.Size = UDim2.new(1, 0, 1, 0)
+	ultLabel.Font = Enum.Font.GothamBlack
+	ultLabel.TextSize = 12
+	ultLabel.TextColor3 = Color3.new(1, 1, 1)
+	ultLabel.TextStrokeTransparency = 0.5
+	ultLabel.Text = "ULT 0%"
+	ultLabel.ZIndex = 2
+	ultLabel.Parent = ultBar
+
+	-- Block bar (guard durability) ---------------------------------------
+	local blockBar = Instance.new("Frame")
+	blockBar.Name = "BlockBar"
+	blockBar.AnchorPoint = Vector2.new(0.5, 1)
+	blockBar.Position = UDim2.new(0.5, 0, 1, -144)
+	blockBar.Size = UDim2.new(0, 340, 0, 8)
+	blockBar.BackgroundColor3 = BG
+	blockBar.BackgroundTransparency = 0.15
+	blockBar.Parent = gui
+	corner(blockBar, 4)
+
+	blockFill = Instance.new("Frame")
+	blockFill.BackgroundColor3 = BLOCK_COLOR
+	blockFill.BorderSizePixel = 0
+	blockFill.Size = UDim2.new(1, 0, 1, 0)
+	blockFill.Parent = blockBar
+	corner(blockFill, 4)
+
+	-- Dash chip (Q) --------------------------------------------------------
+	dashChip = Instance.new("Frame")
+	dashChip.Name = "DashChip"
+	dashChip.AnchorPoint = Vector2.new(1, 1)
+	dashChip.Position = UDim2.new(0.5, -(2 * 92 + 2 * 10 + 8), 1, -18)
+	dashChip.Size = UDim2.new(0, 44, 0, 44)
+	dashChip.BackgroundColor3 = BG
+	dashChip.BackgroundTransparency = 0.15
+	dashChip.Parent = gui
+	corner(dashChip, 8)
+
+	local dashLabel = Instance.new("TextLabel")
+	dashLabel.BackgroundTransparency = 1
+	dashLabel.Size = UDim2.new(1, 0, 1, 0)
+	dashLabel.Font = Enum.Font.GothamBlack
+	dashLabel.TextSize = 16
+	dashLabel.TextColor3 = Color3.new(1, 1, 1)
+	dashLabel.Text = "Q"
+	dashLabel.Parent = dashChip
+
+	local dashOverlay = Instance.new("Frame")
+	dashOverlay.Name = "Cooldown"
+	dashOverlay.AnchorPoint = Vector2.new(0, 1)
+	dashOverlay.Position = UDim2.new(0, 0, 1, 0)
+	dashOverlay.Size = UDim2.new(1, 0, 0, 0)
+	dashOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	dashOverlay.BackgroundTransparency = 0.4
+	dashOverlay.BorderSizePixel = 0
+	dashOverlay.ZIndex = 2
+	dashOverlay.Parent = dashChip
+	corner(dashOverlay, 8)
+
+	refreshSlotNames()
+
+	-- Guard durability lives as an attribute on the character.
+	local function bindCharacter(character)
+		local function onBlockHealth()
+			local blockHealth = character:GetAttribute("BlockHealth") or Config.Block.MaxHealth
+			local ratio = math.clamp(blockHealth / Config.Block.MaxHealth, 0, 1)
+			blockFill.Size = UDim2.new(ratio, 0, 1, 0)
+			blockFill.BackgroundColor3 = ratio &lt; 0.3 and Color3.fromRGB(255, 120, 120) or BLOCK_COLOR
+		end
+		character:GetAttributeChangedSignal("BlockHealth"):Connect(onBlockHealth)
+		onBlockHealth()
+	end
+	LocalPlayer.CharacterAdded:Connect(bindCharacter)
+	if LocalPlayer.Character then
+		bindCharacter(LocalPlayer.Character)
+	end
+
+	-- Ult charge is an attribute on the player, kept up to date by the server.
+	local function onCharge()
+		HUD.SetUltCharge(LocalPlayer:GetAttribute("UltCharge") or 0)
+	end
+	LocalPlayer:GetAttributeChangedSignal("UltCharge"):Connect(onCharge)
+	onCharge()
+end
+
+-- ========================================================================
+-- Updates
+-- ========================================================================
+
+function HUD.SetCooldown(slot, duration)
+	local ui = slots[slot]
+	if not ui then
+		return
+	end
+	ui.cooldownToken += 1
+	local token = ui.cooldownToken
+
+	ui.overlay.Size = UDim2.new(1, 0, 1, 0)
+	TweenService:Create(ui.overlay, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Size = UDim2.new(1, 0, 0, 0),
+	}):Play()
+
+	task.spawn(function()
+		local remaining = duration
+		while remaining &gt; 0 and ui.cooldownToken == token do
+			ui.cooldownLabel.Text = remaining &gt;= 10 and tostring(math.ceil(remaining)) or string.format("%.1f", remaining)
+			task.wait(0.1)
+			remaining -= 0.1
+		end
+		if ui.cooldownToken == token then
+			ui.cooldownLabel.Text = ""
+			ui.overlay.Size = UDim2.new(1, 0, 0, 0)
+		end
+	end)
+end
+
+function HUD.SetDashCooldown(duration)
+	local overlay = dashChip and dashChip:FindFirstChild("Cooldown")
+	if not overlay then
+		return
+	end
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	TweenService:Create(overlay, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Size = UDim2.new(1, 0, 0, 0),
+	}):Play()
+end
+
+function HUD.ClearCooldowns()
+	for _, ui in slots do
+		ui.cooldownToken += 1
+		ui.cooldownLabel.Text = ""
+		ui.overlay.Size = UDim2.new(1, 0, 0, 0)
+	end
+end
+
+function HUD.SetUltCharge(charge)
+	local ratio = math.clamp(charge / Config.Ult.MaxCharge, 0, 1)
+	TweenService:Create(ultFill, TweenInfo.new(0.2), { Size = UDim2.new(ratio, 0, 1, 0) }):Play()
+	if gear5Active then
+		ultLabel.Text = "GEAR 5"
+	elseif ratio &gt;= 1 then
+		ultLabel.Text = "GEAR 5 READY - PRESS G"
+		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
+	else
+		ultLabel.Text = ("ULT %d%%"):format(math.floor(ratio * 100))
+		ultFill.BackgroundColor3 = ULT_COLOR
+	end
+end
+
+function HUD.SetUltState(active, duration)
+	gear5Active = active
+	refreshSlotNames()
+	HUD.ClearCooldowns()
+
+	if active then
+		ultLabel.Text = "GEAR 5"
+		ultFill.BackgroundColor3 = Color3.new(1, 1, 1)
+		ultFill.Size = UDim2.new(1, 0, 1, 0)
+		-- Drain the bar over the ult duration as a timer.
+		TweenService:Create(ultFill, TweenInfo.new(duration or Config.Ult.Duration, Enum.EasingStyle.Linear), {
+			Size = UDim2.new(0, 0, 1, 0),
+		}):Play()
+	else
+		HUD.SetUltCharge(LocalPlayer:GetAttribute("UltCharge") or 0)
+	end
+end
+
+return HUD
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">VFXClient</string><ProtectedString name="Source">--[[
+	VFXClient.lua
+	High-end procedural combat visuals + procedural character animation.
+
+	Everything is generated at runtime (no uploaded assets required):
+	  - real arm-thrust posing by layering Motor6D C0 offsets over the idle
+	    animation, so Luffy actually winds up and throws his punches
+	  - rubber arms that launch from the hand with trails and Haki coating
+	  - impact frames: flash, shockwave rings, sparks, dust, ground cracks
+	  - "hitstop" camera punch + FOV kick + screen flash on heavy blows
+	  - speed lines, charge auras, afterimages, Conqueror's lightning
+
+	Driven entirely by the server's VFX RemoteEvent; every effect name the
+	server fires has a handler in the Effects table below.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local DEFAULT_FOV = 70
+
+-- Palette ----------------------------------------------------------------
+local RUBBER = Color3.fromRGB(245, 205, 170)
+local HAKI = Color3.fromRGB(22, 20, 28)         -- Armament Haki black
+local HAKI_EDGE = Color3.fromRGB(150, 70, 255)  -- Conqueror lightning
+local GEAR5 = Color3.fromRGB(255, 255, 255)
+local GEAR5_RIM = Color3.fromRGB(255, 220, 240)
+local TOON = Color3.fromRGB(255, 130, 200)
+local GOLD = Color3.fromRGB(255, 225, 150)
+local IMPACT_YELLOW = Color3.fromRGB(255, 240, 150)
+
+local VFXClient = {}
+
+local effectsFolder = Instance.new("Folder")
+effectsFolder.Name = "CombatEffects"
+effectsFolder.Parent = workspace
+
+-- Per-character state.
+local gear5Emitters = {}
+local rubberHighlights = {}
+local blockHighlights = {}
+local baseC0 = setmetatable({}, { __mode = "k" }) -- memoized rest pose per Motor6D
+local motorCache = setmetatable({}, { __mode = "k" }) -- [character][side] = Motor6D
+
+-- Screen flash overlay (created lazily).
+local flashFrame
+
+-- ========================================================================
+-- Core helpers
+-- ========================================================================
+
+local function makePart(props)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+	for key, value in props do
+		part[key] = value
+	end
+	part.Parent = effectsFolder
+	return part
+end
+
+local function tween(instance, time, props, style, dir)
+	local t = TweenService:Create(
+		instance,
+		TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out),
+		props
+	)
+	t:Play()
+	return t
+end
+
+local function attachment(part, offset)
+	local a = Instance.new("Attachment")
+	a.Position = offset or Vector3.zero
+	a.Parent = part
+	return a
+end
+
+local function playSound(soundId, parent, volume, pitch)
+	if not soundId or soundId == 0 then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. soundId
+	sound.Volume = volume or 1
+	sound.PlaybackSpeed = pitch or 1
+	sound.Parent = parent or workspace
+	sound:Play()
+	Debris:AddItem(sound, 6)
+end
+
+local function root(character)
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getPart(character, names)
+	if not character then
+		return nil
+	end
+	for _, name in names do
+		local p = character:FindFirstChild(name)
+		if p then
+			return p
+		end
+	end
+	return nil
+end
+
+-- The character's hand (R15), falling back to arm (R6) then root.
+local function handPart(character, side)
+	return getPart(character, { side .. "Hand", side .. " Arm", "HumanoidRootPart" })
+end
+
+local function isLocal(character)
+	return character and character == LocalPlayer.Character
+end
+
+local function distanceFromLocal(position)
+	local r = root(LocalPlayer.Character)
+	return r and (r.Position - position).Magnitude or math.huge
+end
+
+-- ========================================================================
+-- Camera juice
+-- ========================================================================
+
+local function shake(origin, intensity, duration)
+	local falloff = math.clamp(1 - distanceFromLocal(origin) / 130, 0, 1)
+	intensity *= falloff
+	if intensity &lt;= 0.01 then
+		return
+	end
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed &lt; duration do
+			local dt = RunService.RenderStepped:Wait()
+			elapsed += dt
+			local decay = 1 - elapsed / duration
+			Camera.CFrame *= CFrame.new(
+				(math.random() - 0.5) * 2 * intensity * decay,
+				(math.random() - 0.5) * 2 * intensity * decay,
+				0
+			) * CFrame.Angles(0, 0, (math.random() - 0.5) * 0.02 * intensity * decay)
+		end
+	end)
+end
+
+-- Quick punch-in then ease-out of the FOV; scaled by distance.
+local function fovPunch(origin, amount, duration)
+	local falloff = math.clamp(1 - distanceFromLocal(origin) / 110, 0, 1)
+	amount *= falloff
+	if amount &lt;= 0.1 then
+		return
+	end
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed &lt; duration do
+			local dt = RunService.RenderStepped:Wait()
+			elapsed += dt
+			local p = elapsed / duration
+			-- fast dip in the first 20%, smooth return after.
+			local curve = p &lt; 0.2 and (p / 0.2) or (1 - (p - 0.2) / 0.8)
+			Camera.FieldOfView = DEFAULT_FOV - amount * curve
+		end
+		Camera.FieldOfView = DEFAULT_FOV
+	end)
+end
+
+-- Simulated hitstop: a single-frame white/color pop on the screen edges.
+local function screenFlash(color, maxAlpha, duration)
+	if not flashFrame then
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "CombatFlash"
+		gui.ResetOnSpawn = false
+		gui.IgnoreGuiInset = true
+		gui.DisplayOrder = 50
+		gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+		flashFrame = Instance.new("Frame")
+		flashFrame.Size = UDim2.fromScale(1, 1)
+		flashFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+		flashFrame.BackgroundTransparency = 1
+		flashFrame.BorderSizePixel = 0
+		flashFrame.Parent = gui
+	end
+	flashFrame.BackgroundColor3 = color
+	flashFrame.BackgroundTransparency = 1 - maxAlpha
+	tween(flashFrame, duration, { BackgroundTransparency = 1 })
+end
+
+-- ========================================================================
+-- Effect primitives
+-- ========================================================================
+
+local function addTrail(part, color, lifetime, width)
+	local a0 = attachment(part, Vector3.new(0, (width or 1), 0))
+	local a1 = attachment(part, Vector3.new(0, -(width or 1), 0))
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Lifetime = lifetime or 0.25
+	trail.LightEmission = 0.6
+	trail.WidthScale = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	trail.Parent = part
+	return trail
+end
+
+local function shockwave(position, maxSize, color, time, thickness)
+	local ring = makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(thickness or 0.5, 2, 2),
+		CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.1,
+	})
+	tween(ring, time, { Size = Vector3.new(thickness or 0.5, maxSize, maxSize), Transparency = 1 }, Enum.EasingStyle.Quint)
+	Debris:AddItem(ring, time + 0.1)
+end
+
+-- Flat expanding energy disc on the ground (for slams / activations).
+local function groundDisc(position, maxRadius, color, time)
+	local disc = makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.6, 2, 2),
+		CFrame = CFrame.new(position.X, position.Y - 2.5, position.Z) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.25,
+	})
+	tween(disc, time, { Size = Vector3.new(0.6, maxRadius, maxRadius), Transparency = 1 })
+	Debris:AddItem(disc, time + 0.1)
+end
+
+local function sparks(position, color, count, speed, size)
+	local holder = makePart({ Size = Vector3.new(0.2, 0.2, 0.2), CFrame = CFrame.new(position), Transparency = 1 })
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, size or 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new(0.1, 1)
+	emitter.Lifetime = NumberRange.new(0.25, 0.55)
+	emitter.Speed = NumberRange.new(speed or 25)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.LightEmission = 1
+	emitter.Enabled = false
+	emitter.Parent = holder
+	emitter:Emit(count or 24)
+	Debris:AddItem(holder, 1)
+end
+
+local function dust(position, color, count)
+	local holder = makePart({ Size = Vector3.new(0.2, 0.2, 0.2), CFrame = CFrame.new(position), Transparency = 1 })
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color or Color3.fromRGB(140, 130, 120))
+	emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 3),
+		NumberSequenceKeypoint.new(1, 9),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.4),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Lifetime = NumberRange.new(0.5, 1)
+	emitter.Speed = NumberRange.new(8, 14)
+	emitter.SpreadAngle = Vector2.new(70, 70)
+	emitter.Enabled = false
+	emitter.Parent = holder
+	emitter:Emit(count or 14)
+	Debris:AddItem(holder, 1.5)
+end
+
+-- Cracked shards radiating out on the ground.
+local function groundCrack(position, radius, color)
+	for i = 1, 8 do
+		local angle = math.rad(i * 45 + math.random(-12, 12))
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local length = radius * (0.6 + math.random() * 0.5)
+		local shard = makePart({
+			Size = Vector3.new(1, 0.4, length),
+			CFrame = CFrame.lookAt(position - Vector3.new(0, 2.4, 0) + dir * length / 2, position + dir),
+			Color = color or Color3.fromRGB(60, 55, 50),
+			Material = Enum.Material.Slate,
+			Transparency = 0.1,
+		})
+		tween(shard, 0.7, { Transparency = 1 }, Enum.EasingStyle.Linear)
+		Debris:AddItem(shard, 0.8)
+	end
+end
+
+-- Flying debris chunks kicked up by a big impact.
+local function debris(position, color, count)
+	for _ = 1, count or 6 do
+		local chunk = makePart({
+			Anchored = false,
+			CanCollide = false,
+			Material = Enum.Material.Slate,
+			Color = color or Color3.fromRGB(70, 65, 60),
+			Size = Vector3.new(1, 1, 1) * (0.6 + math.random()),
+			CFrame = CFrame.new(position) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6),
+		})
+		chunk.AssemblyLinearVelocity = Vector3.new(
+			(math.random() - 0.5) * 40,
+			25 + math.random() * 25,
+			(math.random() - 0.5) * 40
+		)
+		tween(chunk, 1, { Transparency = 1 })
+		Debris:AddItem(chunk, 1.1)
+	end
+end
+
+-- Converging speed-lines around a character (barrage feel).
+local function speedLines(character, duration, color)
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed &lt; duration do
+			local r = root(character)
+			if not r then
+				break
+			end
+			local angle = math.rad(math.random(0, 359))
+			local far = r.Position + Vector3.new(math.cos(angle) * 14, math.random(-4, 6), math.sin(angle) * 14)
+			local near = r.Position + Vector3.new(math.cos(angle) * 5, 0, math.sin(angle) * 5)
+			local line = makePart({
+				Size = Vector3.new(0.15, 0.15, (far - near).Magnitude),
+				CFrame = CFrame.lookAt((far + near) / 2, far),
+				Color = color,
+				Transparency = 0.2,
+			})
+			tween(line, 0.12, { Transparency = 1 })
+			Debris:AddItem(line, 0.15)
+			elapsed += RunService.RenderStepped:Wait()
+		end
+	end)
+end
+
+-- Charge-in aura: particles flowing INTO a point during a windup.
+local function chargeAura(getPos, duration, color)
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed &lt; duration do
+			local pos = getPos()
+			if not pos then
+				break
+			end
+			local angle = math.rad(math.random(0, 359))
+			local start = pos + Vector3.new(math.cos(angle) * 10, math.random(-5, 5), math.sin(angle) * 10)
+			local mote = makePart({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(1.1, 1.1, 1.1),
+				CFrame = CFrame.new(start),
+				Color = color,
+				Transparency = 0.1,
+			})
+			tween(mote, 0.3, { CFrame = CFrame.new(pos), Size = Vector3.new(0.2, 0.2, 0.2), Transparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			Debris:AddItem(mote, 0.35)
+			elapsed += task.wait(0.04)
+		end
+	end)
+end
+
+-- Full impact package.
+local function impact(position, opts)
+	opts = opts or {}
+	local color = opts.Color or IMPACT_YELLOW
+	local scale = opts.Scale or 1
+
+	-- White-hot flash sphere.
+	local flash = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2, 2, 2) * scale,
+		CFrame = CFrame.new(position),
+		Color = color,
+		Transparency = 0.05,
+	})
+	tween(flash, 0.18, { Size = Vector3.new(7, 7, 7) * scale, Transparency = 1 }, Enum.EasingStyle.Quint)
+	Debris:AddItem(flash, 0.25)
+
+	shockwave(position, 14 * scale, color, 0.35, 0.5)
+	sparks(position, color, math.floor(18 * scale), 22 * scale, 1 * scale)
+
+	if opts.Heavy then
+		shockwave(position, 26 * scale, GEAR5, 0.5, 0.8)
+		dust(position, opts.DustColor, 18)
+		groundCrack(position, 10 * scale, opts.CrackColor)
+		debris(position, opts.CrackColor, 6)
+		shake(position, 0.9 * scale, 0.3)
+		fovPunch(position, 6 * scale, 0.22)
+		if distanceFromLocal(position) &lt; 40 then
+			screenFlash(color, 0.25, 0.18)
+		end
+	else
+		shake(position, 0.35, 0.18)
+	end
+end
+
+-- ========================================================================
+-- Procedural character animation (Motor6D posing)
+-- ========================================================================
+
+local function getMotor(character, side)
+	if not character then
+		return nil
+	end
+	local cache = motorCache[character]
+	if cache and cache[side] and cache[side].Parent then
+		return cache[side]
+	end
+	if not cache then
+		cache = {}
+		motorCache[character] = cache
+	end
+	-- R15 uses "RightShoulder"; R6 uses "Right Shoulder".
+	for _, name in { side .. "Shoulder", side .. " Shoulder" } do
+		for _, d in character:GetDescendants() do
+			if d:IsA("Motor6D") and d.Name == name then
+				cache[side] = d
+				return d
+			end
+		end
+	end
+	return nil
+end
+
+local function restPose(motor)
+	if not baseC0[motor] then
+		baseC0[motor] = motor.C0
+	end
+	return baseC0[motor]
+end
+
+-- Thrust an arm forward (punch), then let it ease back to the idle.
+-- `power` 0..1 scales how far the arm extends.
+local function punchArm(character, side, outTime, hold, power)
+	local motor = getMotor(character, side)
+	if not motor then
+		return
+	end
+	power = power or 1
+	local base = restPose(motor)
+	-- Raise + rotate the upper arm so it points forward.
+	local posed = base * CFrame.Angles(math.rad(-95 * power), 0, math.rad((side == "Right" and -8 or 8) * power))
+	tween(motor, outTime or 0.08, { C0 = posed }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	task.delay((outTime or 0.08) + (hold or 0.06), function()
+		if motor.Parent then
+			tween(motor, 0.22, { C0 = base }, Enum.EasingStyle.Quad)
+		end
+	end)
+end
+
+-- Both arms forward (Bazooka / Bajrang).
+local function pushBothArms(character, outTime, hold)
+	punchArm(character, "Right", outTime, hold, 1)
+	punchArm(character, "Left", outTime, hold, 1)
+end
+
+-- A faint afterimage clone of the torso+arms (dash / burst).
+local function afterImage(character, color, life)
+	local r = root(character)
+	if not r then
+		return
+	end
+	local ghost = makePart({
+		Size = Vector3.new(2.5, 5, 1.5),
+		CFrame = r.CFrame,
+		Color = color or GEAR5,
+		Material = Enum.Material.ForceField,
+		Transparency = 0.4,
+	})
+	tween(ghost, life or 0.35, { Transparency = 1 })
+	Debris:AddItem(ghost, (life or 0.35) + 0.05)
+end
+
+-- ========================================================================
+-- The signature rubber arm
+-- ========================================================================
+
+-- A stretching rubber arm from the character's hand reaching `range` studs
+-- along its look vector. Returns nothing; self-cleans.
+local function rubberArm(character, side, range, thickness, color, haki, outTime, hold)
+	local hand = handPart(character, side)
+	local r = root(character)
+	if not hand or not r then
+		return
+	end
+	local origin = CFrame.new(hand.Position) * (r.CFrame - r.CFrame.Position)
+	local armColor = haki and HAKI or color
+
+	local arm = makePart({
+		Size = Vector3.new(thickness, thickness, 2),
+		CFrame = origin * CFrame.new(0, 0, -1),
+		Color = armColor,
+		Material = haki and Enum.Material.Glass or Enum.Material.SmoothPlastic,
+		Reflectance = haki and 0.35 or 0,
+		Transparency = 0,
+	})
+	local fist = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(thickness * 1.9, thickness * 1.9, thickness * 1.9),
+		CFrame = origin * CFrame.new(0, 0, -2),
+		Color = armColor,
+		Material = haki and Enum.Material.Glass or Enum.Material.SmoothPlastic,
+		Reflectance = haki and 0.35 or 0,
+	})
+	addTrail(fist, haki and HAKI_EDGE or color, 0.2, thickness)
+
+	if haki then
+		-- Conqueror lightning crackling along the arm.
+		local bolt = makePart({
+			Size = Vector3.new(thickness * 1.3, thickness * 1.3, 2),
+			CFrame = arm.CFrame,
+			Color = HAKI_EDGE,
+			Transparency = 0.4,
+		})
+		tween(bolt, outTime + 0.15, {
+			Size = Vector3.new(thickness * 1.3, thickness * 1.3, range),
+			CFrame = origin * CFrame.new(0, 0, -range / 2),
+			Transparency = 1,
+		}, Enum.EasingStyle.Back)
+		Debris:AddItem(bolt, outTime + 0.3)
+	end
+
+	tween(arm, outTime, {
+		Size = Vector3.new(thickness, thickness, range),
+		CFrame = origin * CFrame.new(0, 0, -range / 2),
+	}, Enum.EasingStyle.Back)
+	tween(fist, outTime, { CFrame = origin * CFrame.new(0, 0, -range) }, Enum.EasingStyle.Back)
+
+	task.delay(outTime + (hold or 0.05), function()
+		tween(arm, 0.14, {
+			Size = Vector3.new(thickness, thickness, 2),
+			CFrame = origin * CFrame.new(0, 0, -1),
+			Transparency = 1,
+		})
+		tween(fist, 0.14, { CFrame = origin * CFrame.new(0, 0, -2), Transparency = 1 })
+	end)
+	Debris:AddItem(arm, outTime + 0.5)
+	Debris:AddItem(fist, outTime + 0.5)
+	return origin
+end
+
+-- A barrage of rubber fists inside a cone in front of the character.
+local function fistFlurry(character, duration, range, color, haki, size, perSecond)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed &lt; duration do
+			local r = root(character)
+			if not r then
+				break
+			end
+			punchArm(character, side, 0.05, 0.02, 0.8)
+			side = side == "Right" and "Left" or "Right"
+
+			local origin = r.CFrame
+			local dist = math.random(4, math.max(5, math.floor(range)))
+			local fist = makePart({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(size, size, size),
+				Color = haki and HAKI or color,
+				Material = haki and Enum.Material.Glass or Enum.Material.Neon,
+				Reflectance = haki and 0.3 or 0,
+				Transparency = 0.05,
+				CFrame = origin * CFrame.new((math.random() - 0.5) * 7, (math.random() - 0.5) * 5, -1),
+			})
+			addTrail(fist, haki and HAKI_EDGE or color, 0.12, size * 0.5)
+			tween(fist, 0.1, {
+				CFrame = origin * CFrame.new((math.random() - 0.5) * 6, (math.random() - 0.5) * 4, -dist),
+				Transparency = 1,
+			}, Enum.EasingStyle.Quint)
+			Debris:AddItem(fist, 0.16)
+			playSound(Config.Sounds.Punch, fist, 0.35, 0.9 + math.random() * 0.4)
+			elapsed += task.wait(1 / perSecond)
+		end
+	end)
+end
+
+-- ========================================================================
+-- Effect handlers
+-- ========================================================================
+
+local Effects = {}
+
+function Effects.HitImpact(data)
+	impact(data.Position, {
+		Color = data.Heavy and GEAR5 or IMPACT_YELLOW,
+		Scale = data.Heavy and 1.4 or 0.8,
+		Heavy = data.Heavy,
+	})
+	playSound(data.Heavy and Config.Sounds.HeavyImpact or Config.Sounds.Punch, workspace, data.Heavy and 1 or 0.6)
+end
+
+function Effects.M1Swing(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	punchArm(data.Character, side, 0.06, 0.05, 1)
+	rubberArm(data.Character, side, Config.M1.Range, 0.9, RUBBER, data.Index &gt;= Config.M1.ComboHits, 0.07)
+	if isLocal(data.Character) then
+		fovPunch(root(data.Character) and root(data.Character).Position or Vector3.zero, 2, 0.15)
+	end
+end
+
+function Effects.Pistol(data)
+	local character = data.Character
+	local cfg = Config.Base[1]
+	local r = root(character)
+	if not r then
+		return
+	end
+	playSound(Config.Sounds.Stretch, r, 1)
+
+	-- Wind-up: draw the fist back with a charge aura.
+	punchArm(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.4)
+	chargeAura(function()
+		local hand = handPart(character, "Right")
+		return hand and hand.Position
+	end, cfg.WindUp, RUBBER)
+
+	task.delay(cfg.WindUp - 0.05, function()
+		if not root(character) then
+			return
+		end
+		punchArm(character, "Right", 0.07, 0.14, 1.1)
+		local origin = rubberArm(character, "Right", data.Range, 1.5, RUBBER, false, 0.1, 0.14)
+		if origin then
+			impact(origin.Position + origin.LookVector * data.Range, { Color = RUBBER, Scale = 1.1, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 55) })
+		end
+		shake(r.Position, 0.5, 0.2)
+	end)
+end
+
+function Effects.Bazooka(data)
+	local character = data.Character
+	local cfg = Config.Base[2]
+	local r = root(character)
+	if not r then
+		return
+	end
+
+	punchArm(character, "Right", cfg.WindUp * 0.6, cfg.WindUp * 0.4, -0.5)
+	punchArm(character, "Left", cfg.WindUp * 0.6, cfg.WindUp * 0.4, -0.5)
+	chargeAura(function()
+		return r.Position + r.CFrame.LookVector * 2
+	end, cfg.WindUp, RUBBER)
+
+	task.delay(cfg.WindUp - 0.05, function()
+		if not root(character) then
+			return
+		end
+		pushBothArms(character, 0.08, 0.16)
+		rubberArm(character, "Right", cfg.Range, 1.7, RUBBER, false, 0.09, 0.16)
+		rubberArm(character, "Left", cfg.Range, 1.7, RUBBER, false, 0.09, 0.16)
+		local hitPos = r.Position + r.CFrame.LookVector * cfg.Range
+		impact(hitPos, { Color = GEAR5, Scale = 1.6, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 55) })
+		groundDisc(r.Position, 34, RUBBER, 0.45)
+	end)
+end
+
+function Effects.Gatling(data)
+	fistFlurry(data.Character, (data.Duration or 1.6) + 0.3, data.Range or 15, RUBBER, false, 1.8, 20)
+	speedLines(data.Character, (data.Duration or 1.6) + 0.3, RUBBER)
+	local r = root(data.Character)
+	if r then
+		shake(r.Position, 0.4, data.Duration or 1.6)
+	end
+end
+
+function Effects.DawnGatling(data)
+	fistFlurry(data.Character, (data.Duration or 1.6) + 0.3, data.Range or 22, GEAR5, false, 2.6, 34)
+	speedLines(data.Character, (data.Duration or 1.6) + 0.3, GEAR5)
+	local r = root(data.Character)
+	if r then
+		-- The many-arms illusion: extra wide rubber arms firing outward.
+		task.spawn(function()
+			local elapsed = 0
+			while elapsed &lt; (data.Duration or 1.6) do
+				rubberArm(data.Character, math.random() &lt; 0.5 and "Right" or "Left", data.Range or 22, 1.4, GEAR5, false, 0.12, 0.02)
+				elapsed += task.wait(0.09)
+			end
+		end)
+		shake(r.Position, 0.6, data.Duration or 1.6)
+		fovPunch(r.Position, 3, 0.4)
+	end
+end
+
+function Effects.RubberCombo(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		rubberArm(character, "Right", Config.Base[4].Range, 1, RUBBER, false, 0.1)
+		return
+	end
+	afterImage(character, RUBBER, 0.4)
+	groundDisc(r.Position, 12, RUBBER, 0.3)
+	fistFlurry(character, data.Duration or 1.3, 6, RUBBER, false, 1.5, 16)
+	speedLines(character, data.Duration or 1.3, RUBBER)
+end
+
+function Effects.ToonForce(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		rubberArm(character, "Right", Config.Gear5[3].Range, 1.3, GEAR5, false, 0.1)
+		return
+	end
+	afterImage(character, TOON, 0.5)
+	groundDisc(r.Position, 16, TOON, 0.35)
+	-- Cartoon-bright barrage with pink pops.
+	fistFlurry(character, data.Duration or 1.6, 7, GEAR5, false, 1.8, 20)
+	speedLines(character, data.Duration or 1.6, TOON)
+	task.spawn(function()
+		local elapsed = 0
+		while elapsed &lt; (data.Duration or 1.6) do
+			local rr = root(character)
+			if rr then
+				sparks(rr.Position + rr.CFrame.LookVector * math.random(3, 8) + Vector3.new(0, math.random(-2, 3), 0), TOON, 6, 14, 1.4)
+			end
+			elapsed += task.wait(0.12)
+		end
+	end)
+end
+
+function Effects.BajrangGun(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	playSound(Config.Sounds.DrumsOfLiberation, r, 1)
+	local windUp = data.WindUp or 1.2
+	local range = data.Range or 70
+	local fistSize = 34
+
+	-- Wind-up: raise both arms overhead, giant fist inflates behind Luffy
+	-- as clouds/energy pour in.
+	punchArm(character, "Right", windUp * 0.5, windUp * 0.5, -0.7)
+	punchArm(character, "Left", windUp * 0.5, windUp * 0.5, -0.7)
+
+	local fist = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(5, 5, 5),
+		CFrame = r.CFrame * CFrame.new(0, 16, 24),
+		Color = GEAR5,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.05,
+	})
+	addTrail(fist, GEAR5_RIM, 0.4, fistSize * 0.4)
+	local knuckles = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = fist.CFrame,
+		Color = GEAR5_RIM,
+		Transparency = 0.6,
+	})
+	tween(fist, windUp, { Size = Vector3.new(fistSize, fistSize, fistSize) }, Enum.EasingStyle.Sine)
+	tween(knuckles, windUp, { Size = Vector3.new(fistSize * 1.15, fistSize * 1.15, fistSize * 1.15), Transparency = 0.85 }, Enum.EasingStyle.Sine)
+	chargeAura(function()
+		return fist.Position
+	end, windUp, GEAR5)
+	shake(r.Position, 0.3, windUp)
+
+	task.delay(windUp, function()
+		local rNow = root(character)
+		local launch = rNow and rNow.CFrame or r.CFrame
+		pushBothArms(character, 0.1, 0.4)
+		fist.CFrame = launch * CFrame.new(0, 8, 8)
+		knuckles.CFrame = fist.CFrame
+		tween(fist, 0.3, { CFrame = launch * CFrame.new(0, 6, -range) }, Enum.EasingStyle.Quart)
+		tween(knuckles, 0.3, { CFrame = launch * CFrame.new(0, 6, -range) }, Enum.EasingStyle.Quart)
+		shake(launch.Position, 2.2, 0.6)
+		fovPunch(launch.Position, 10, 0.5)
+
+		task.delay(0.3, function()
+			local hitPos = fist.Position
+			impact(hitPos, { Color = GEAR5, Scale = 3, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 55) })
+			shockwave(hitPos, 120, GEAR5, 0.8, 2)
+			shockwave(hitPos, 80, GEAR5_RIM, 0.6, 1.4)
+			sparks(hitPos, GEAR5, 80, 60, 3)
+			debris(hitPos, Color3.fromRGB(80, 72, 66), 16)
+			screenFlash(GEAR5, 0.4, 0.3)
+			tween(fist, 0.4, { Transparency = 1, Size = Vector3.new(fistSize * 1.4, fistSize * 1.4, fistSize * 1.4) })
+			tween(knuckles, 0.4, { Transparency = 1 })
+		end)
+	end)
+	Debris:AddItem(fist, windUp + 1.6)
+	Debris:AddItem(knuckles, windUp + 1.6)
+end
+
+function Effects.DrumsChannel(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	playSound(Config.Sounds.DrumsOfLiberation, r, 2)
+	task.spawn(function()
+		local beats = math.floor((data.Duration or 2.2) / 0.55)
+		for _ = 1, beats do
+			local rNow = root(character)
+			if not rNow then
+				break
+			end
+			-- Beat the chest: alternate arm slaps + a heartbeat ring.
+			punchArm(character, "Right", 0.08, 0.05, 0.5)
+			punchArm(character, "Left", 0.08, 0.05, 0.5)
+			shockwave(rNow.Position, 20, GEAR5, 0.5, 1)
+			groundDisc(rNow.Position, 18, GEAR5_RIM, 0.4)
+			shake(rNow.Position, 0.45, 0.2)
+			fovPunch(rNow.Position, 2, 0.2)
+			task.wait(0.55)
+		end
+	end)
+end
+
+function Effects.Devour(data)
+	local character = data.Character
+	local targetRoot = root(data.Target)
+	local r = root(character)
+	if not r or not targetRoot then
+		return
+	end
+	local mouthPos = targetRoot.Position
+
+	local head = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2, 2, 2),
+		CFrame = CFrame.new(r.Position + Vector3.new(0, 2, 0)),
+		Color = RUBBER,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.05,
+	})
+	local jaw = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = head.CFrame,
+		Color = Color3.fromRGB(120, 40, 40),
+		Transparency = 0.2,
+	})
+	tween(head, 0.35, { Size = Vector3.new(24, 24, 24), CFrame = CFrame.new(mouthPos) }, Enum.EasingStyle.Back)
+	tween(jaw, 0.35, { Size = Vector3.new(20, 10, 20), CFrame = CFrame.new(mouthPos + Vector3.new(0, -6, 0)) }, Enum.EasingStyle.Back)
+
+	task.delay(0.45, function()
+		playSound(Config.Sounds.Gulp, head, 2)
+		impact(mouthPos, { Color = GEAR5, Scale = 2.4, Heavy = true })
+		shockwave(mouthPos, 46, RUBBER, 0.5, 1.5)
+		screenFlash(RUBBER, 0.3, 0.25)
+		tween(head, 0.25, { Size = Vector3.new(1, 1, 1), Transparency = 1 })
+		tween(jaw, 0.25, { Transparency = 1 })
+	end)
+	Debris:AddItem(head, 1.2)
+	Debris:AddItem(jaw, 1.2)
+end
+
+function Effects.DevourWhiff(data)
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position + r.CFrame.LookVector * 5, 12, RUBBER, 0.3, 0.6)
+	end
+end
+
+function Effects.Dash(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	afterImage(character, GEAR5, 0.3)
+	local direction = data.Direction or r.CFrame.LookVector
+	local streak = makePart({
+		Size = Vector3.new(1.5, 1.5, 9),
+		CFrame = CFrame.lookAt(r.Position - direction * 4, r.Position - direction * 12),
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.35,
+	})
+	tween(streak, 0.25, { Size = Vector3.new(0.2, 0.2, 16), Transparency = 1 })
+	Debris:AddItem(streak, 0.3)
+	dust(r.Position - Vector3.new(0, 2.5, 0), Color3.fromRGB(150, 140, 130), 8)
+end
+
+function Effects.Gear5Start(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	playSound(Config.Sounds.Gear5Activate, r, 2)
+
+	-- Giant liberation shockwaves + pillar of light.
+	shockwave(r.Position, 70, GEAR5, 0.9, 2)
+	shockwave(r.Position, 45, GEAR5_RIM, 0.7, 1.4)
+	groundDisc(r.Position, 60, GEAR5, 0.7)
+	sparks(r.Position, GEAR5, 70, 55, 2.5)
+	shake(r.Position, 1.4, 0.6)
+	fovPunch(r.Position, 12, 0.6)
+	if isLocal(character) then
+		screenFlash(GEAR5, 0.6, 0.5)
+	end
+
+	local pillar = makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(6, 1, 1),
+		CFrame = CFrame.new(r.Position) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = GEAR5,
+		Transparency = 0.2,
+	})
+	tween(pillar, 0.5, { Size = Vector3.new(200, 12, 12), Transparency = 1 }, Enum.EasingStyle.Quint)
+	Debris:AddItem(pillar, 0.6)
+
+	-- Persistent white steam-clouds + rim glow while Gear 5 lasts.
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(GEAR5)
+	emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Transparency = NumberSequence.new(0.45, 1)
+	emitter.Lifetime = NumberRange.new(0.5, 1)
+	emitter.Rate = 30
+	emitter.Speed = NumberRange.new(3, 7)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Parent = r
+	gear5Emitters[character] = emitter
+
+	local highlight = character:FindFirstChild("Gear5Highlight")
+	if highlight and highlight:IsA("Highlight") then
+		-- server already added one; add a subtle pulse.
+		task.spawn(function()
+			while highlight.Parent and character:GetAttribute("Gear5") do
+				tween(highlight, 0.6, { FillTransparency = 0.2 })
+				task.wait(0.6)
+				tween(highlight, 0.6, { FillTransparency = 0.45 })
+				task.wait(0.6)
+			end
+		end)
+	end
+end
+
+function Effects.Gear5End(data)
+	local emitter = gear5Emitters[data.Character]
+	if emitter then
+		emitter.Enabled = false
+		Debris:AddItem(emitter, 1.5)
+		gear5Emitters[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 24, GEAR5, 0.5, 1)
+		dust(r.Position, GEAR5, 12)
+	end
+end
+
+function Effects.RubberizeStart(data)
+	local character = data.Character
+	if rubberHighlights[character] then
+		return
+	end
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = TOON
+	highlight.OutlineColor = TOON
+	highlight.FillTransparency = 0.5
+	highlight.Parent = character
+	rubberHighlights[character] = highlight
+	task.spawn(function()
+		while rubberHighlights[character] == highlight and highlight.Parent do
+			tween(highlight, 0.25, { FillTransparency = 0.2 })
+			task.wait(0.25)
+			tween(highlight, 0.25, { FillTransparency = 0.6 })
+			task.wait(0.25)
+		end
+	end)
+end
+
+function Effects.RubberizeEnd(data)
+	local highlight = rubberHighlights[data.Character]
+	if highlight then
+		highlight:Destroy()
+		rubberHighlights[data.Character] = nil
+	end
+end
+
+function Effects.BlockStart(data)
+	local character = data.Character
+	if blockHighlights[character] then
+		return
+	end
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(180, 210, 255)
+	highlight.OutlineColor = Color3.fromRGB(200, 225, 255)
+	highlight.FillTransparency = 0.75
+	highlight.Parent = character
+	blockHighlights[character] = highlight
+end
+
+function Effects.BlockEnd(data)
+	local highlight = blockHighlights[data.Character]
+	if highlight then
+		highlight:Destroy()
+		blockHighlights[data.Character] = nil
+	end
+end
+
+function Effects.BlockHit(data)
+	sparks(data.Position, Color3.fromRGB(180, 210, 255), 12, 18, 1)
+	shockwave(data.Position, 8, Color3.fromRGB(180, 210, 255), 0.25, 0.5)
+	playSound(Config.Sounds.Punch, workspace, 0.5, 1.4)
+end
+
+function Effects.GuardBreak(data)
+	impact(data.Position, { Color = Color3.fromRGB(255, 90, 90), Scale = 1.3, Heavy = true })
+	playSound(Config.Sounds.HeavyImpact, workspace, 1.2)
+end
+
+-- ========================================================================
+-- Wiring
+-- ========================================================================
+
+function VFXClient.Init()
+	Camera.FieldOfView = DEFAULT_FOV
+	Remotes.get("VFX").OnClientEvent:Connect(function(effectName, data)
+		local effect = Effects[effectName]
+		if effect and type(data) == "table" then
+			task.spawn(effect, data)
+		end
+	end)
+end
+
+return VFXClient
+</ProtectedString></Properties></Item></Item></Item></Item></roblox>
