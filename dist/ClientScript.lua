@@ -1696,6 +1696,451 @@ local function afterImage(character, color, life)
 end
 
 -- ========================================================================
+-- Keyframe animation engine
+-- Poses the whole R15 rig (torso, head, both arms, both legs) through a
+-- timeline of keyframes layered over the idle animation, so moves read as
+-- real, exaggerated, goofy animation instead of a single static pose.
+-- A "pose" maps joint names to CFrame offsets applied over the rest C0.
+-- Joints: Root, Waist, Neck, RightShoulder, LeftShoulder, RightElbow,
+--         LeftElbow, RightHip, LeftHip, RightKnee, LeftKnee.
+-- ========================================================================
+
+local jointCache = setmetatable({}, { __mode = "k" })
+
+local function getJoint(character, name)
+	if not character then
+		return nil
+	end
+	local cache = jointCache[character]
+	if cache and cache[name] and cache[name].Parent then
+		return cache[name]
+	end
+	if not cache then
+		cache = {}
+		jointCache[character] = cache
+	end
+	for _, d in character:GetDescendants() do
+		if d:IsA("Motor6D") and d.Name == name then
+			cache[name] = d
+			return d
+		end
+	end
+	return nil
+end
+
+-- Terse pose authoring: ra() = rotation in degrees, po() = position + rotation.
+local function ra(x, y, z)
+	return CFrame.Angles(math.rad(x or 0), math.rad(y or 0), math.rad(z or 0))
+end
+local function po(px, py, pz, rx, ry, rz)
+	return CFrame.new(px or 0, py or 0, pz or 0) * ra(rx, ry, rz)
+end
+
+-- Tween a whole pose (jointName -> offset) over `time`.
+local function poseCharacter(character, pose, time, style, dir)
+	for name, offset in pose do
+		local joint = getJoint(character, name)
+		if joint then
+			tween(joint, time, { C0 = restPose(joint) * offset }, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out)
+		end
+	end
+end
+
+local function settlePose(character, touched, time)
+	for name in touched do
+		local joint = getJoint(character, name)
+		if joint then
+			tween(joint, time or 0.22, { C0 = restPose(joint) }, Enum.EasingStyle.Quad)
+		end
+	end
+end
+
+-- Play an ordered list of keyframes:
+--   { { t = seconds, pose = {...}, style = , dir = }, ... }
+-- Runs in its own thread and eases back to rest at the end (unless holdLast).
+local function playSequence(character, frames, holdLast)
+	if not character then
+		return
+	end
+	task.spawn(function()
+		local touched = {}
+		for _, frame in frames do
+			if not character.Parent then
+				return
+			end
+			for name in frame.pose do
+				touched[name] = true
+			end
+			poseCharacter(character, frame.pose, frame.t, frame.style, frame.dir)
+			task.wait(frame.t)
+		end
+		if not holdLast then
+			settlePose(character, touched, 0.24)
+		end
+	end)
+end
+
+local BACK = Enum.EasingStyle.Back
+local SINE = Enum.EasingStyle.Sine
+local QUINT = Enum.EasingStyle.Quint
+
+-- ========================================================================
+-- Character animation library (signature, goofy full-body sequences)
+-- ========================================================================
+
+local Anims = {}
+
+-- ---- Luffy: loose rubbery windmill arms + big rubber wind-ups -----------
+function Anims.luffyM1(character, index)
+	local right = index % 2 == 1
+	playSequence(character, {
+		{ t = 0.05, pose = {
+			Waist = po(0, 0, 0, 6, right and -30 or 30, 0),
+			[right and "RightShoulder" or "LeftShoulder"] = ra(-140, 0, right and -20 or 20),
+			[right and "RightElbow" or "LeftElbow"] = ra(-30),
+			Neck = ra(6, right and -12 or 12, 0),
+		}, style = BACK },
+		{ t = 0.1, pose = {
+			Waist = po(0, 0, 0, 10, right and 26 or -26, 0),
+			[right and "RightShoulder" or "LeftShoulder"] = ra(-108, 0, right and 8 or -8),
+			[right and "RightElbow" or "LeftElbow"] = ra(0),
+		}, style = QUINT },
+	})
+end
+
+function Anims.luffyWindup(character, windup)
+	playSequence(character, {
+		-- Pull the arm way back, lean back, cheeks puff (goofy anticipation).
+		{ t = windup * 0.6, pose = {
+			Waist = po(0, -0.2, -0.4, -20, 40, 0),
+			RightShoulder = ra(60, 0, -40),
+			RightElbow = ra(-70),
+			Neck = ra(-10, 20, 0),
+			RightHip = ra(-14),
+			LeftHip = ra(10),
+		}, style = SINE },
+		-- FIRE: whip the whole body forward.
+		{ t = 0.08, pose = {
+			Waist = po(0, 0, 0.2, 22, -20, 0),
+			RightShoulder = ra(-100, 0, 6),
+			RightElbow = ra(0),
+			Neck = ra(12, -10, 0),
+		}, style = BACK },
+		{ t = 0.16, pose = {
+			Waist = po(0, 0, 0, 10, -6, 0),
+			RightShoulder = ra(-88),
+		}, style = QUINT },
+	})
+end
+
+function Anims.luffyBazooka(character, windup)
+	playSequence(character, {
+		{ t = windup * 0.6, pose = {
+			Waist = po(0, -0.3, -0.5, -24, 0, 0),
+			RightShoulder = ra(70, 0, -30),
+			LeftShoulder = ra(70, 0, 30),
+			RightElbow = ra(-80),
+			LeftElbow = ra(-80),
+			Neck = ra(-14, 0, 0),
+			RightHip = ra(-20),
+			LeftHip = ra(-20),
+		}, style = SINE },
+		{ t = 0.1, pose = {
+			Waist = po(0, 0.2, 0.4, 26, 0, 0),
+			RightShoulder = ra(-96, 0, 4),
+			LeftShoulder = ra(-96, 0, -4),
+			RightElbow = ra(0),
+			LeftElbow = ra(0),
+			Neck = ra(14, 0, 0),
+		}, style = BACK },
+		{ t = 0.18, pose = { Waist = po(0, 0, 0, 12, 0, 0) }, style = QUINT },
+	})
+end
+
+-- ---- Zoro: bladed stances, shoulder-led slashes, three-sword spin -------
+function Anims.zoroM1(character, index)
+	local right = index % 2 == 1
+	playSequence(character, {
+		{ t = 0.05, pose = {
+			Waist = po(0, 0, 0, 4, right and 34 or -34, 0),
+			RightShoulder = ra(right and -70 or -30, 0, -18),
+			LeftShoulder = ra(right and -30 or -70, 0, 18),
+			Neck = ra(4, right and 14 or -14, 0),
+			RightHip = ra(0, 0, -6),
+		}, style = BACK },
+		{ t = 0.11, pose = {
+			Waist = po(0, 0, 0, 8, right and -30 or 30, 0),
+			RightShoulder = ra(-96, 0, -20),
+			LeftShoulder = ra(-96, 0, 20),
+			Neck = ra(8, right and -12 or 12, 0),
+		}, style = QUINT },
+	})
+end
+
+function Anims.zoroSlash(character, windup)
+	playSequence(character, {
+		-- Draw the blades back into a wide stance.
+		{ t = (windup or 0.3) * 0.6, pose = {
+			Waist = po(0, 0, 0, -6, 50, 0),
+			RightShoulder = ra(30, 0, -60),
+			LeftShoulder = ra(-40, 0, 60),
+			Neck = ra(0, 30, 0),
+			RightHip = ra(0, 20, 0),
+		}, style = SINE },
+		-- Cross-slash through.
+		{ t = 0.09, pose = {
+			Waist = po(0, 0, 0, 10, -50, 0),
+			RightShoulder = ra(-70, 0, 40),
+			LeftShoulder = ra(-70, 0, -40),
+			Neck = ra(6, -20, 0),
+		}, style = BACK },
+		{ t = 0.16, pose = { Waist = po(0, 0, 0, 6, -10, 0) }, style = QUINT },
+	})
+end
+
+function Anims.zoroSpin(character, dur)
+	-- Rapid full torso spin with arms flared out (Ul-Tora / Tatsumaki).
+	local frames = {}
+	local turns = math.max(2, math.floor((dur or 0.8) / 0.12))
+	for i = 1, turns do
+		table.insert(frames, {
+			t = 0.12,
+			pose = {
+				Waist = ra(0, (i % 2 == 0) and 120 or -120, 0),
+				RightShoulder = ra(-90, 0, 60),
+				LeftShoulder = ra(-90, 0, -60),
+				Neck = ra(8, 0, 0),
+			},
+			style = Enum.EasingStyle.Linear,
+		})
+	end
+	playSequence(character, frames)
+end
+
+-- ---- Sanji: acrobatic one-legged spins + high kicks ---------------------
+function Anims.sanjiM1(character, index)
+	local right = index % 2 == 1
+	playSequence(character, {
+		{ t = 0.05, pose = {
+			Waist = po(0, 0, 0, 8, right and -18 or 18, 0),
+			[right and "RightHip" or "LeftHip"] = ra(-70, 0, right and -20 or 20),
+			[right and "RightKnee" or "LeftKnee"] = ra(70),
+			Neck = ra(6, 0, 0),
+			RightShoulder = ra(0, 0, -30),
+			LeftShoulder = ra(0, 0, 30),
+		}, style = BACK },
+		{ t = 0.1, pose = {
+			[right and "RightHip" or "LeftHip"] = ra(-20, 0, 0),
+			[right and "RightKnee" or "LeftKnee"] = ra(0),
+			Waist = po(0, 0, 0, 4, 0, 0),
+		}, style = QUINT },
+	})
+end
+
+function Anims.sanjiHighKick(character, windup)
+	playSequence(character, {
+		-- Coil down onto one leg.
+		{ t = (windup or 0.25) * 0.7, pose = {
+			Waist = po(0, -0.3, 0, 14, 0, 0),
+			RightHip = ra(30),
+			RightKnee = ra(60),
+			LeftHip = ra(-10),
+			Neck = ra(-8, 0, 0),
+			RightShoulder = ra(0, 0, -40),
+			LeftShoulder = ra(0, 0, 40),
+		}, style = SINE },
+		-- Explode into a vertical axe kick.
+		{ t = 0.09, pose = {
+			Waist = po(0, 0.2, 0, -18, 0, 0),
+			RightHip = ra(-130),
+			RightKnee = ra(0),
+			Neck = ra(10, 0, 0),
+		}, style = BACK },
+		{ t = 0.18, pose = { RightHip = ra(-40), Waist = po(0, 0, 0, -4, 0, 0) }, style = QUINT },
+	})
+end
+
+function Anims.sanjiSpinKick(character, dur)
+	local frames = {}
+	local turns = math.max(2, math.floor((dur or 0.8) / 0.13))
+	for i = 1, turns do
+		table.insert(frames, {
+			t = 0.13,
+			pose = {
+				Waist = ra(0, (i % 2 == 0) and 140 or -140, 0),
+				RightHip = ra(-100, 0, -30),
+				RightKnee = ra(10),
+				LeftHip = ra(20),
+				RightShoulder = ra(0, 0, -70),
+				LeftShoulder = ra(0, 0, 70),
+			},
+			style = Enum.EasingStyle.Linear,
+		})
+	end
+	playSequence(character, frames)
+end
+
+-- ---- Ace: caster gestures, finger-guns, arms-crossed flair --------------
+function Anims.aceM1(character, index)
+	local right = index % 2 == 1
+	playSequence(character, {
+		{ t = 0.05, pose = {
+			[right and "RightShoulder" or "LeftShoulder"] = ra(-60, 0, right and -10 or 10),
+			[right and "RightElbow" or "LeftElbow"] = ra(-50),
+			Waist = po(0, 0, 0, 4, right and -14 or 14, 0),
+		}, style = BACK },
+		{ t = 0.1, pose = {
+			[right and "RightShoulder" or "LeftShoulder"] = ra(-100),
+			[right and "RightElbow" or "LeftElbow"] = ra(0),
+			Waist = po(0, 0, 0, 8, 0, 0),
+		}, style = QUINT },
+	})
+end
+
+function Anims.aceCast(character, windup)
+	playSequence(character, {
+		-- Wind the fist back low, gathering flame.
+		{ t = (windup or 0.4) * 0.6, pose = {
+			Waist = po(0, -0.1, -0.3, -8, 30, 0),
+			RightShoulder = ra(40, 0, -50),
+			RightElbow = ra(-90),
+			Neck = ra(-6, 24, 0),
+			RightHip = ra(-8),
+		}, style = SINE },
+		-- Thrust the palm forward.
+		{ t = 0.08, pose = {
+			Waist = po(0, 0, 0.2, 16, -14, 0),
+			RightShoulder = ra(-96, 0, 2),
+			RightElbow = ra(0),
+			Neck = ra(10, -8, 0),
+		}, style = BACK },
+		{ t = 0.18, pose = { Waist = po(0, 0, 0, 8, 0, 0), RightShoulder = ra(-86) }, style = QUINT },
+	})
+end
+
+function Anims.aceFingerGun(character, count)
+	-- Rapid alternating finger-gun jabs for the bullet barrage.
+	local frames = {}
+	for i = 1, math.max(3, count or 6) do
+		local right = i % 2 == 1
+		table.insert(frames, {
+			t = 0.08,
+			pose = {
+				[right and "RightShoulder" or "LeftShoulder"] = ra(-92, 0, right and 4 or -4),
+				[right and "RightElbow" or "LeftElbow"] = ra(-6),
+				Waist = po(0, 0, 0, 4, right and -8 or 8, 0),
+			},
+			style = BACK,
+		})
+	end
+	playSequence(character, frames)
+end
+
+-- ---- Tung: over-the-top goofy bat swings + royal king struts ------------
+function Anims.tungM1(character, index)
+	local right = index % 2 == 1
+	playSequence(character, {
+		-- Cartoonishly wind the bat way overhead.
+		{ t = 0.06, pose = {
+			Waist = po(0, 0.2, 0, -12, right and -40 or 40, 0),
+			RightShoulder = ra(-170, 0, right and -30 or 30),
+			LeftShoulder = ra(-150, 0, right and -30 or 30),
+			Neck = ra(-10, 0, 0),
+			RightHip = ra(-8),
+		}, style = BACK },
+		-- SMASH down with the whole body.
+		{ t = 0.09, pose = {
+			Waist = po(0, -0.3, 0.3, 30, right and 30 or -30, 0),
+			RightShoulder = ra(-40),
+			LeftShoulder = ra(-30),
+			Neck = ra(16, 0, 0),
+			RightKnee = ra(30),
+			LeftKnee = ra(30),
+		}, style = BACK },
+		{ t = 0.16, pose = { Waist = po(0, 0, 0, 8, 0, 0) }, style = QUINT },
+	})
+end
+
+function Anims.tungSmash(character, windup, big)
+	local raise = big and 200 or 175
+	playSequence(character, {
+		-- Huge overhead bat raise, lean way back, tiny goofy hop.
+		{ t = (windup or 0.4) * 0.65, pose = {
+			Waist = po(0, 0.3, -0.4, -28, 0, 0),
+			RightShoulder = ra(-raise, 0, -24),
+			LeftShoulder = ra(-raise, 0, 24),
+			Neck = ra(-18, 0, 0),
+			RightHip = ra(-12),
+			LeftHip = ra(-12),
+			RightKnee = ra(20),
+			LeftKnee = ra(20),
+		}, style = BACK },
+		-- Earth-shattering slam.
+		{ t = 0.1, pose = {
+			Waist = po(0, -0.5, 0.5, 40, 0, 0),
+			RightShoulder = ra(-30),
+			LeftShoulder = ra(-30),
+			Neck = ra(24, 0, 0),
+			RightKnee = ra(50),
+			LeftKnee = ra(50),
+		}, style = BACK },
+		{ t = 0.2, pose = { Waist = po(0, 0, 0, 10, 0, 0), RightKnee = ra(10), LeftKnee = ra(10) }, style = QUINT },
+	})
+end
+
+-- The King's royal strut on ult activation: chest out, chin up, arms wide.
+function Anims.tungKingPose(character)
+	playSequence(character, {
+		{ t = 0.25, pose = {
+			Waist = po(0, 0.3, 0, -16, 0, 0),
+			Neck = ra(-20, 0, 0),
+			RightShoulder = ra(0, 0, -80),
+			LeftShoulder = ra(0, 0, 80),
+			RightElbow = ra(-30),
+			LeftElbow = ra(-30),
+		}, style = BACK },
+		{ t = 0.4, pose = {
+			Waist = po(0, 0.2, 0, -10, 8, 0),
+			Neck = ra(-14, 6, 0),
+			RightShoulder = ra(0, 0, -55),
+			LeftShoulder = ra(0, 0, 55),
+		}, style = SINE },
+		{ t = 0.5, pose = {
+			Waist = po(0, 0.25, 0, -12, -8, 0),
+			Neck = ra(-16, -6, 0),
+		}, style = SINE },
+	}, true)
+end
+
+-- A generic triumphant "ult power-up" flex used by the anime transformations.
+function Anims.ultFlex(character)
+	playSequence(character, {
+		{ t = 0.12, pose = {
+			Waist = po(0, -0.4, 0, 20, 0, 0),
+			RightShoulder = ra(30, 0, -70),
+			LeftShoulder = ra(30, 0, 70),
+			RightElbow = ra(-90),
+			LeftElbow = ra(-90),
+			Neck = ra(20, 0, 0),
+			RightHip = ra(20),
+			LeftHip = ra(20),
+			RightKnee = ra(40),
+			LeftKnee = ra(40),
+		}, style = BACK },
+		{ t = 0.5, pose = {
+			Waist = po(0, 0.2, 0, -18, 0, 0),
+			RightShoulder = ra(-20, 0, -60),
+			LeftShoulder = ra(-20, 0, 60),
+			RightElbow = ra(-40),
+			LeftElbow = ra(-40),
+			Neck = ra(-16, 0, 0),
+			RightKnee = ra(0),
+			LeftKnee = ra(0),
+		}, style = BACK },
+	})
+end
+
+-- ========================================================================
 -- The signature rubber arm
 -- ========================================================================
 
@@ -1996,7 +2441,7 @@ end
 
 function Effects.M1Swing(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
-	punchArm(data.Character, side, 0.06, 0.05, 1)
+	Anims.luffyM1(data.Character, data.Index)
 	rubberArm(data.Character, side, Config.M1.Range, 0.9, RUBBER, data.Index >= Config.M1.ComboHits, 0.07)
 	if isLocal(data.Character) then
 		fovPunch(root(data.Character) and root(data.Character).Position or Vector3.zero, 2, 0.15)
@@ -2012,8 +2457,8 @@ function Effects.Pistol(data)
 	end
 	playSound(Config.Sounds.Stretch, r, 1)
 
-	-- Wind-up: draw the fist back with a charge aura.
-	punchArm(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.4)
+	-- Wind-up: draw the whole body back with a charge aura, then whip forward.
+	Anims.luffyWindup(character, cfg.WindUp)
 	chargeAura(function()
 		local hand = handPart(character, "Right")
 		return hand and hand.Position
@@ -2023,7 +2468,6 @@ function Effects.Pistol(data)
 		if not root(character) then
 			return
 		end
-		punchArm(character, "Right", 0.07, 0.14, 1.1)
 		local origin = rubberArm(character, "Right", data.Range, 1.5, RUBBER, false, 0.1, 0.14)
 		if origin then
 			impact(origin.Position + origin.LookVector * data.Range, { Color = RUBBER, Scale = 1.1, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 55) })
@@ -2040,8 +2484,7 @@ function Effects.Bazooka(data)
 		return
 	end
 
-	punchArm(character, "Right", cfg.WindUp * 0.6, cfg.WindUp * 0.4, -0.5)
-	punchArm(character, "Left", cfg.WindUp * 0.6, cfg.WindUp * 0.4, -0.5)
+	Anims.luffyBazooka(character, cfg.WindUp)
 	chargeAura(function()
 		return r.Position + r.CFrame.LookVector * 2
 	end, cfg.WindUp, RUBBER)
@@ -2050,7 +2493,6 @@ function Effects.Bazooka(data)
 		if not root(character) then
 			return
 		end
-		pushBothArms(character, 0.08, 0.16)
 		rubberArm(character, "Right", cfg.Range, 1.7, RUBBER, false, 0.09, 0.16)
 		rubberArm(character, "Left", cfg.Range, 1.7, RUBBER, false, 0.09, 0.16)
 		local hitPos = r.Position + r.CFrame.LookVector * cfg.Range
@@ -2295,6 +2737,7 @@ function Effects.Gear5Start(data)
 		return
 	end
 	playSound(Config.Sounds.Gear5Activate, r, 2)
+	Anims.ultFlex(character)
 
 	-- Giant liberation shockwaves + pillar of light.
 	shockwave(r.Position, 70, GEAR5, 0.9, 2)
@@ -2425,7 +2868,7 @@ end
 
 function Effects.ZoroM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
-	punchArm(data.Character, side, 0.06, 0.05, 1)
+	Anims.zoroM1(data.Character, data.Index)
 	slash(data.Character, side == "Right" and -32 or 32, 6, SLASH, 5, 0.16)
 	if isLocal(data.Character) then
 		local r = root(data.Character)
@@ -2463,12 +2906,11 @@ function Effects.ToraGari(data)
 		return
 	end
 	-- Raise the blades overhead, then a heavy vertical cleave.
-	punchArm(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.7)
+	Anims.zoroSlash(character, cfg.WindUp)
 	chargeAura(function()
 		return r.Position + Vector3.new(0, 4, 0)
 	end, cfg.WindUp, SLASH)
 	task.delay(cfg.WindUp - 0.05, function()
-		pushBothArms(character, 0.08, 0.14)
 		slash(character, 8, 12, BLADE, 5, 0.22)
 		slash(character, -4, 11, SLASH, 5, 0.22)
 		local hit = r.Position + r.CFrame.LookVector * 6
@@ -2479,6 +2921,7 @@ end
 function Effects.UlToraGari(data)
 	local character = data.Character
 	local cfg = Config.Movesets.Zoro.Base[3]
+	Anims.zoroSpin(character, cfg.WindUp + cfg.Hits * cfg.HitInterval)
 	speedLines(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, SLASH)
 	task.delay(cfg.WindUp, function()
 		for hit = 1, cfg.Hits do
@@ -2600,6 +3043,7 @@ function Effects.AshuraStart(data)
 	if not r then
 		return
 	end
+	Anims.ultFlex(character)
 	shockwave(r.Position, 55, ASHURA_RED, 0.8, 1.6)
 	groundDisc(r.Position, 50, ASHURA_DARK, 0.7)
 	sparks(r.Position, ASHURA_RED, 50, 45, 2)
@@ -2666,7 +3110,7 @@ end
 
 function Effects.SanjiM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
-	kickLeg(data.Character, side, 0.06, 0.05, 1)
+	Anims.sanjiM1(data.Character, data.Index)
 	slash(data.Character, side == "Right" and -20 or 20, 5.5, AIR, 5, 0.15)
 	if isLocal(data.Character) then
 		local r = root(data.Character)
@@ -2694,10 +3138,9 @@ function Effects.Concasse(data)
 	if not r then
 		return
 	end
-	kickLeg(character, "Right", cfg.WindUp * 0.7, cfg.WindUp * 0.3, -0.6)
+	Anims.sanjiHighKick(character, cfg.WindUp)
 	afterImage(character, AIR, 0.3)
 	task.delay(cfg.WindUp - 0.05, function()
-		kickLeg(character, "Right", 0.07, 0.12, 1.2)
 		slash(character, 4, 11, AIR, 5, 0.22) -- vertical axe kick
 		local hit = r.Position + r.CFrame.LookVector * 6
 		impact(hit, { Color = AIR, Scale = 1.4, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
@@ -2707,6 +3150,7 @@ end
 function Effects.PartyTable(data)
 	local character = data.Character
 	local cfg = Config.Movesets.Sanji.Base[3]
+	Anims.sanjiSpinKick(character, cfg.WindUp + cfg.Hits * cfg.HitInterval)
 	speedLines(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, AIR)
 	task.delay(cfg.WindUp, function()
 		for hit = 1, cfg.Hits do
@@ -2828,6 +3272,7 @@ function Effects.DiableStart(data)
 	if not r then
 		return
 	end
+	Anims.ultFlex(character)
 	shockwave(r.Position, 50, FIRE_ORANGE, 0.8, 1.5)
 	groundDisc(r.Position, 46, FIRE_DEEP, 0.7)
 	sparks(r.Position, FIRE_ORANGE, 55, 45, 2)
@@ -3000,7 +3445,7 @@ end
 
 function Effects.AceM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
-	punchArm(data.Character, side, 0.06, 0.05, 1)
+	Anims.aceM1(data.Character, data.Index)
 	slash(data.Character, side == "Right" and -24 or 24, 5, FIRE_YELLOW, 5, 0.15)
 	muzzle(data.Character, FIRE_ORANGE)
 end
@@ -3008,13 +3453,12 @@ end
 function Effects.HikenCast(data)
 	local character = data.Character
 	local cfg = Config.Movesets.Ace.Base[1]
-	punchArm(character, "Right", (cfg.WindUp or 0.4) * 0.6, (cfg.WindUp or 0.4) * 0.4, -0.4)
+	Anims.aceCast(character, cfg.WindUp or 0.4)
 	chargeAura(function()
 		local hand = handPart(character, "Right")
 		return hand and hand.Position
 	end, cfg.WindUp or 0.4, FIRE_ORANGE)
 	task.delay((cfg.WindUp or 0.4) - 0.05, function()
-		punchArm(character, "Right", 0.08, 0.14, 1.2)
 		muzzle(character, FIRE_ORANGE)
 	end)
 end
@@ -3023,7 +3467,7 @@ function Effects.EnteiCast(data)
 	local character = data.Character
 	local cfg = Config.Movesets.Ace.Ult[1]
 	local r = root(character)
-	pushBothArms(character, (cfg.WindUp or 1) * 0.6, (cfg.WindUp or 1) * 0.4)
+	Anims.aceCast(character, cfg.WindUp or 1)
 	chargeAura(function()
 		local rr = root(character)
 		return rr and rr.Position + rr.CFrame.LookVector * 3 + Vector3.new(0, 2, 0)
@@ -3042,7 +3486,7 @@ function Effects.EnteiCast(data)
 end
 
 function Effects.HiganCast(data)
-	punchArm(data.Character, "Right", 0.08, 0.1, 0.8)
+	Anims.aceFingerGun(data.Character, data.Bullets or 6)
 	muzzle(data.Character, FIRE_ORANGE)
 end
 
@@ -3108,6 +3552,7 @@ function Effects.GreatFlameStart(data)
 	if not r then
 		return
 	end
+	Anims.ultFlex(character)
 	shockwave(r.Position, 55, FIRE_ORANGE, 0.8, 1.6)
 	groundDisc(r.Position, 50, FIRE_DEEP, 0.7)
 	sparks(r.Position, FIRE_ORANGE, 60, 50, 2.4)
@@ -3159,7 +3604,7 @@ local ROYAL_GOLD = Color3.fromRGB(255, 210, 90)
 
 function Effects.TungM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
-	punchArm(data.Character, side, 0.06, 0.05, 1)
+	Anims.tungM1(data.Character, data.Index)
 	slash(data.Character, side == "Right" and -30 or 30, 6, WOOD, 5, 0.16)
 end
 
@@ -3176,6 +3621,7 @@ end
 
 function Effects.SahurSmash(data)
 	local cfg = Config.Movesets.Tung.Base[1]
+	Anims.tungSmash(data.Character, cfg.WindUp, false)
 	task.delay(cfg.WindUp - 0.05, function()
 		batSmash(data.Character, WOOD, false)
 	end)
@@ -3245,6 +3691,7 @@ end
 
 function Effects.RoyalDecree(data)
 	local cfg = Config.Movesets.Tung.Ult[1]
+	Anims.tungSmash(data.Character, cfg.WindUp, true)
 	task.delay(cfg.WindUp - 0.05, function()
 		batSmash(data.Character, ROYAL_GOLD, true)
 		royalHit(data.Character, 8, 2.2)
@@ -3254,6 +3701,7 @@ end
 function Effects.KingsJudgement(data)
 	local character = data.Character
 	local cfg = Config.Movesets.Tung.Ult[2]
+	Anims.zoroSpin(character, cfg.WindUp + 0.2)
 	task.delay(cfg.WindUp, function()
 		for a = 0, 315, 45 do
 			arcSlash(character, a, cfg.Radius, ROYAL_GOLD)
@@ -3275,9 +3723,10 @@ function Effects.SahurRush(data)
 		return
 	end
 	afterImage(character, ROYAL_GOLD, 0.5)
+	Anims.tungM1(character, 1)
 	task.spawn(function()
 		for i = 1, 3 do
-			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 1.05)
+			Anims.tungM1(character, i)
 			slash(character, i % 2 == 0 and 30 or -30, 8, ROYAL_GOLD, 5, 0.14)
 			task.wait(0.1)
 		end
@@ -3301,6 +3750,8 @@ end
 function Effects.KingCrown(data)
 	local character = data.Character
 	local r = root(character)
+	-- Hold the royal strut through the whole cutscene.
+	Anims.tungKingPose(character)
 	local head = character:FindFirstChild("Head")
 	local landPos = head and head.Position or (r and r.Position + Vector3.new(0, 2, 0))
 	if landPos then
