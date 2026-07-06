@@ -2795,6 +2795,288 @@ function Effects.KingCrownEnd(data)
 end
 
 -- ========================================================================
+-- Kaido effect handlers (kanabo + Azure Dragon)
+-- ========================================================================
+
+local AZURE = Color3.fromRGB(90, 160, 220)
+local AZURE_DEEP = Color3.fromRGB(40, 90, 150)
+
+-- A jagged lightning bolt striking down onto a world position.
+local function lightningBolt(position, color, segments)
+	color = color or Color3.fromRGB(180, 210, 255)
+	segments = segments or 6
+	local top = position + Vector3.new(math.random(-6, 6), 90, math.random(-6, 6))
+	local prev = top
+	for i = 1, segments do
+		local frac = i / segments
+		local target = position:Lerp(top, 1 - frac) + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5)) * (1 - frac)
+		if i == segments then
+			target = position
+		end
+		local seg = makePart({
+			Size = Vector3.new(0.5, 0.5, (target - prev).Magnitude),
+			CFrame = CFrame.lookAt((prev + target) / 2, target),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Transparency = 0.05,
+		})
+		tween(seg, 0.18, { Transparency = 1 }, Enum.EasingStyle.Quad)
+		Debris:AddItem(seg, 0.25)
+		prev = target
+	end
+	sparks(position, color, 26, 40, 1.6)
+	shockwave(position, 26, color, 0.4, 1)
+end
+
+local function kanaboSwing(character, angleDeg, length, color, forward, life)
+	slash(character, angleDeg, length, color, forward, life)
+	weaponEdgeTrail(character, "Kanabo", "Barrel", color, (life or 0.2) + 0.14)
+end
+
+function Effects.KaidoM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	Anims.tungM1(data.Character, data.Index)
+	kanaboSwing(data.Character, side == "Right" and -30 or 30, 8, Color3.fromRGB(150, 160, 175), 5, 0.18)
+end
+
+function Effects.Ragnaraku(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Kaido.Base[1]
+	Anims.tungSmash(character, cfg.WindUp, true)
+	task.delay(cfg.WindUp - 0.05, function()
+		local r = root(character)
+		if not r then
+			return
+		end
+		kanaboSwing(character, 6, 13, Color3.fromRGB(150, 160, 175), 5, 0.24)
+		local hit = r.Position + r.CFrame.LookVector * 7
+		lightningBolt(hit, Color3.fromRGB(200, 220, 255))
+		impact(hit, { Color = Color3.fromRGB(200, 220, 255), Scale = 2, Heavy = true, CrackColor = Color3.fromRGB(60, 60, 70) })
+		fovPunch(r.Position, 7, 0.35)
+	end)
+end
+
+function Effects.Kaifu(data)
+	local character = data.Character
+	Anims.aceCast(character, Config.Movesets.Kaido.Base[2].WindUp or 0.35)
+	local r = root(character)
+	if r then
+		-- azure wind gathering at the hand
+		chargeAura(function()
+			local hand = handPart(character, "Right")
+			return hand and hand.Position
+		end, Config.Movesets.Kaido.Base[2].WindUp or 0.35, AZURE)
+	end
+end
+
+function Effects.KanaboSweep(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Kaido.Base[3]
+	Anims.zoroSpin(character, cfg.WindUp + cfg.Hits * cfg.HitInterval)
+	weaponEdgeTrail(character, "Kanabo", "Barrel", Color3.fromRGB(150, 160, 175), cfg.WindUp + cfg.Hits * cfg.HitInterval + 0.2)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 50, cfg.Radius, Color3.fromRGB(170, 180, 195))
+			end
+			local r = root(character)
+			if r then
+				shake(r.Position, 0.4, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+local function breathCone(character, cfg, color)
+	Anims.aceCast(character, cfg.WindUp or 0.4)
+	task.delay((cfg.WindUp or 0.4) - 0.05, function()
+		local r = root(character)
+		if not r then
+			return
+		end
+		-- Fire/heat breath fanning out in front.
+		for i = -2, 2 do
+			flameArc(character, i * 16, (cfg.Range or 24) * 0.5, 5)
+		end
+		for n = 1, 3 do
+			task.delay(n * 0.06, function()
+				local rr = root(character)
+				if rr then
+					local pos = rr.Position + rr.CFrame.LookVector * (6 + n * 5) + Vector3.new(0, 1, 0)
+					sparks(pos, color, 12, 24, 1.6)
+				end
+			end)
+		end
+		shake(r.Position, 0.5, 0.3)
+	end)
+end
+
+function Effects.BoloBreath(data)
+	breathCone(data.Character, Config.Movesets.Kaido.Base[4], FIRE_ORANGE)
+end
+
+-- Dragon-form breath casts (projectile itself is rendered by FireProjectile).
+function Effects.DragonBoroBreath(data)
+	local character = data.Character
+	Anims.aceCast(character, Config.Movesets.Kaido.Ult[1].WindUp or 0.6)
+	local r = root(character)
+	if r then
+		chargeAura(function()
+			local rr = root(character)
+			return rr and rr.Position + rr.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0)
+		end, Config.Movesets.Kaido.Ult[1].WindUp or 0.6, FIRE_ORANGE)
+		shake(r.Position, 0.4, 0.5)
+		task.delay((Config.Movesets.Kaido.Ult[1].WindUp or 0.6) - 0.05, function()
+			screenFlash(FIRE_ORANGE, 0.22, 0.2)
+		end)
+	end
+end
+
+function Effects.BlastBreath(data)
+	local character = data.Character
+	Anims.aceCast(character, Config.Movesets.Kaido.Ult[2].WindUp or 0.5)
+	local r = root(character)
+	if r then
+		chargeAura(function()
+			local rr = root(character)
+			return rr and rr.Position + rr.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0)
+		end, Config.Movesets.Kaido.Ult[2].WindUp or 0.5, Color3.fromRGB(255, 120, 50))
+	end
+end
+
+function Effects.DragonTwister(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Kaido.Ult[3]
+	tornado(character, cfg.WindUp + cfg.Hits * cfg.HitInterval, cfg.Radius, 34, AZURE)
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 55, cfg.Radius, AZURE)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.RaimeiHakke(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Kaido.Ult[4]
+	Anims.tungSmash(character, cfg.WindUp, true)
+	task.delay(cfg.WindUp - 0.05, function()
+		local r = root(character)
+		if not r then
+			return
+		end
+		local hit = r.Position + r.CFrame.LookVector * 8
+		for _ = 1, 3 do
+			lightningBolt(hit + Vector3.new(math.random(-8, 8), 0, math.random(-8, 8)), Color3.fromRGB(200, 220, 255))
+		end
+		impact(hit, { Color = Color3.fromRGB(210, 225, 255), Scale = 3, Heavy = true, CrackColor = Color3.fromRGB(60, 60, 70) })
+		shockwave(hit, 70, AZURE, 0.7, 1.6)
+		screenFlash(Color3.fromRGB(200, 220, 255), 0.35, 0.3)
+		fovPunch(r.Position, 10, 0.5)
+	end)
+end
+
+-- The Azure Dragon transformation cutscene.
+function Effects.DragonStart(data)
+	local character = data.Character
+	local r = root(character)
+	if not r then
+		return
+	end
+	Anims.ultFlex(character)
+
+	-- Storm gathers: dark cloud, lightning ring, azure shockwaves, roar.
+	local cloud = makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(10, 6, 10),
+		CFrame = CFrame.new(r.Position + Vector3.new(0, 40, 0)),
+		Color = Color3.fromRGB(40, 48, 66),
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.2,
+		CanCollide = false,
+	})
+	tween(cloud, 0.6, { Size = Vector3.new(80, 26, 80), Transparency = 0.35 })
+	Debris:AddItem(cloud, 2.5)
+
+	for i = 1, 6 do
+		task.delay(i * 0.12, function()
+			lightningBolt(r.Position + Vector3.new(math.random(-16, 16), 0, math.random(-16, 16)), Color3.fromRGB(200, 220, 255))
+		end)
+	end
+
+	shockwave(r.Position, 70, AZURE, 0.9, 2)
+	shockwave(r.Position, 45, AZURE_DEEP, 0.7, 1.4)
+	groundDisc(r.Position, 60, AZURE_DEEP, 0.8)
+	sparks(r.Position, AZURE, 70, 55, 2.5)
+	shake(r.Position, 1.8, 0.8)
+	fovPunch(r.Position, 14, 0.7)
+	if isLocal(character) then
+		screenFlash(AZURE, 0.55, 0.6)
+	end
+
+	-- Swirling mist + a flame-cloud disc beneath his feet while transformed.
+	local mist = Instance.new("ParticleEmitter")
+	mist.Color = ColorSequence.new(Color3.fromRGB(150, 180, 210))
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 0) })
+	mist.Transparency = NumberSequence.new(0.5, 1)
+	mist.Lifetime = NumberRange.new(0.7, 1.3)
+	mist.Rate = 24
+	mist.Speed = NumberRange.new(2, 5)
+	mist.SpreadAngle = Vector2.new(180, 180)
+	mist.Parent = r
+	greatFlameFx[character] = { mist }
+
+	-- Roar banner.
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "DragonCutscene"
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 60
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+	local banner = Instance.new("TextLabel")
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.5)
+	banner.Size = UDim2.fromScale(0.85, 0.16)
+	banner.BackgroundTransparency = 1
+	banner.Font = Enum.Font.GothamBlack
+	banner.TextScaled = true
+	banner.TextColor3 = AZURE
+	banner.TextStrokeColor3 = Color3.fromRGB(0, 10, 30)
+	banner.TextStrokeTransparency = 0
+	banner.TextTransparency = 1
+	banner.Text = "UO UO NO MI — AZURE DRAGON"
+	banner.Parent = gui
+	tween(banner, 0.4, { TextTransparency = 0 })
+	task.delay(1.9, function()
+		tween(banner, 0.5, { TextTransparency = 1 })
+		task.delay(0.6, function()
+			gui:Destroy()
+		end)
+	end)
+end
+
+function Effects.DragonEnd(data)
+	local instances = greatFlameFx[data.Character]
+	if instances then
+		for _, fx in instances do
+			if fx.Parent then
+				fx.Enabled = false
+				Debris:AddItem(fx, 1.5)
+			end
+		end
+		greatFlameFx[data.Character] = nil
+	end
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 24, AZURE, 0.5, 1)
+		sparks(r.Position, AZURE, 20, 30, 1.5)
+	end
+end
+
+-- ========================================================================
 -- Wiring
 -- ========================================================================
 

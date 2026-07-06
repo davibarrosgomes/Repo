@@ -56,16 +56,25 @@ local function refreshStates()
 	for _, entry in Config.Roster do
 		local card = cards[entry.Id]
 		if card then
+			local ownsEA = entry.EarlyAccess and LocalPlayer:GetAttribute("Owns_" .. entry.Id) == true
 			if entry.Locked then
+				card.stroke.Enabled = false
+			elseif entry.EarlyAccess and not ownsEA then
+				-- Not purchased yet: show the early-access buy state.
+				card.button.Text = "EARLY ACCESS"
+				card.button.BackgroundColor3 = Color3.fromRGB(230, 175, 60)
+				card.button.TextColor3 = Color3.fromRGB(30, 25, 10)
 				card.stroke.Enabled = false
 			elseif entry.Id == selected then
 				card.button.Text = "SELECTED"
 				card.button.BackgroundColor3 = entry.Color
+				card.button.TextColor3 = Color3.new(1, 1, 1)
 				card.stroke.Enabled = true
 				card.stroke.Color = entry.Color
 			else
 				card.button.Text = "SELECT"
 				card.button.BackgroundColor3 = BG
+				card.button.TextColor3 = Color3.new(1, 1, 1)
 				card.stroke.Enabled = false
 			end
 		end
@@ -348,6 +357,12 @@ function CharacterSelect.Init()
 	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
 	-- Reveal the admin character the moment access is granted.
 	LocalPlayer:GetAttributeChangedSignal("Admin"):Connect(CharacterSelect.RebuildCards)
+	-- Update early-access cards when ownership is confirmed / purchased.
+	for _, entry in Config.Roster do
+		if entry.EarlyAccess then
+			LocalPlayer:GetAttributeChangedSignal("Owns_" .. entry.Id):Connect(refreshStates)
+		end
+	end
 
 	refreshStates()
 end

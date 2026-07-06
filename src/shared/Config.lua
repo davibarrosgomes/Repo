@@ -65,6 +65,20 @@ Config.Roster = {
 		Ult = "Gamma Knife",
 	},
 	{
+		-- EARLY ACCESS: unlocked by buying a Game Pass. Set GamePassId to your
+		-- real pass id (Create > Game Passes on the Roblox site). Until it is
+		-- set, only the game owner + admins can play him (for testing).
+		Id = "Kaido",
+		Name = "Kaido of the Beasts",
+		Title = "Uo Uo no Mi, Azure Dragon",
+		Color = Color3.fromRGB(90, 150, 200),
+		EarlyAccess = true,
+		GamePassId = 0, -- <-- put your Game Pass id here
+		Price = "Early Access",
+		Moves = { "Ragnaraku", "Kaifu", "Kanabo Sweep", "Bolo Breath" },
+		Ult = "Azure Dragon",
+	},
+	{
 		-- Admin-only OP character. Hidden from normal players; only shown +
 		-- selectable after entering the admin code (validated server-side).
 		Id = "Tung",
@@ -695,6 +709,118 @@ local TungKing = {
 }
 
 -- ========================================================================
+-- Kaido - base moveset (kanabo bruiser; Uo Uo no Mi in human form)
+-- ========================================================================
+local KaidoBase = {
+	[1] = {
+		Id = "Ragnaraku",
+		Name = "Ragnaraku",
+		Damage = 30,
+		Cooldown = 9,
+		WindUp = 0.5,
+		Range = 15,
+		Width = 10,
+		Knockback = 100,
+		RagdollTime = 2.5,
+	},
+	[2] = {
+		Id = "Kaifu",
+		Name = "Kaifu",
+		Cooldown = 8,
+		WindUp = 0.35,
+		Speed = 120,
+		Life = 1.1,
+		Radius = 3.5,
+		Damage = 22,
+		ExplodeRadius = 8,
+		Knockback = 80,
+		RagdollTime = 1.6,
+	},
+	[3] = {
+		Id = "KanaboSweep",
+		Name = "Kanabo Sweep",
+		DamagePerHit = 12,
+		Hits = 2,
+		HitInterval = 0.2,
+		Cooldown = 11,
+		WindUp = 0.35,
+		Radius = 15,
+		Knockback = 82,
+		RagdollTime = 1.8,
+	},
+	[4] = {
+		Id = "BoloBreath",
+		Name = "Bolo Breath",
+		Damage = 20,
+		Cooldown = 10,
+		WindUp = 0.4,
+		Range = 26,
+		Width = 14,
+		Knockback = 60,
+		RagdollTime = 1.6,
+		Burn = { Dps = 4, Time = 3 },
+	},
+}
+
+-- ========================================================================
+-- Kaido - Azure Dragon moveset (ult; transformed dragon form)
+-- ========================================================================
+local KaidoDragon = {
+	[1] = {
+		Id = "DragonBoroBreath",
+		Name = "Boro Breath",
+		Cooldown = 14,
+		WindUp = 0.6,
+		Speed = 150,
+		Life = 1.6,
+		Radius = 9,
+		Damage = 55,
+		ExplodeRadius = 22,
+		Knockback = 150,
+		RagdollTime = 2.6,
+		Burn = { Dps = 6, Time = 4 },
+	},
+	[2] = {
+		Id = "BlastBreath",
+		Name = "Blast Breath",
+		Cooldown = 12,
+		WindUp = 0.5,
+		Speed = 92,
+		Life = 1.4,
+		Radius = 10,
+		Damage = 48,
+		ExplodeRadius = 24,
+		Knockback = 140,
+		RagdollTime = 2.4,
+		Burn = { Dps = 5, Time = 3 },
+	},
+	[3] = {
+		Id = "DragonTwister",
+		Name = "Dragon Twister",
+		DamagePerHit = 8,
+		Hits = 5,
+		HitInterval = 0.14,
+		Cooldown = 13,
+		WindUp = 0.4,
+		Radius = 20,
+		Knockback = 60,
+		LaunchPower = 100,
+		RagdollTime = 2.5,
+	},
+	[4] = {
+		Id = "RaimeiHakke",
+		Name = "Raimei Hakke",
+		Damage = 70,
+		Cooldown = 18,
+		WindUp = 0.8,
+		Range = 20,
+		Width = 16,
+		Knockback = 170,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
 -- HealthMult / DamageMult (optional) scale a character's stats.
@@ -706,6 +832,7 @@ Config.Movesets = {
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
 	Tung = { UltName = "The King", Base = TungBase, Ult = TungKing, HealthMult = 2, DamageMult = 1.5 },
+	Kaido = { UltName = "Azure Dragon", Base = KaidoBase, Ult = KaidoDragon, HealthMult = 1.5, DamageMult = 1.1 },
 }
 
 -- ========================================================================

@@ -9,6 +9,16 @@ Playable characters (pick via the topbar character button):
   that sets enemies on fire (burn damage-over-time)
 - **Portgas D. Ace** — ranged fire zoner (projectiles) + a **Great Flame
   Commandment** ultimate; his hits also burn
+- **Kaido of the Beasts** *(early access — Game Pass)* — a heavy kanabo
+  bruiser whose ultimate transforms him into his **Azure Dragon** form
+  (grows, gains dragon features + storm/breath attacks)
+
+**Early access (Kaido):** Kaido is gated behind a Game Pass. Put your real
+Game Pass id in `Config.Roster` (the `GamePassId` field on the Kaido entry).
+Until it is set, only the game owner and admins can play him. Clicking his
+card in the menu prompts the purchase; owning the pass unlocks him. Game Pass
+revenue goes to the game owner — to split it with a partner, publish the game
+under a Roblox **group** and use group payouts.
 
 **Admin character:** press **`K`** to open the Admin Panel and
 enter the access code to unlock **Tung Tung Tung Sahur** — an OP bat fighter

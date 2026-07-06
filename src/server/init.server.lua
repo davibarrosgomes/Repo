@@ -18,6 +18,9 @@ local Zoro = require(script.Characters.Zoro)
 local Sanji = require(script.Characters.Sanji)
 local Ace = require(script.Characters.Ace)
 local Tung = require(script.Characters.Tung)
+local Kaido = require(script.Characters.Kaido)
+
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -47,21 +50,58 @@ local Characters = {
 	Sanji = Sanji,
 	Ace = Ace,
 	Tung = Tung,
+	Kaido = Kaido,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
--- Which roster ids are selectable by anyone (unlocked + have a module), and
--- which are admin-only (require the Admin attribute, granted by the code).
+-- Which roster ids are free-to-all, admin-only, or early-access (gated by a
+-- Game Pass purchase). Early-access ids also record their Game Pass id.
 local unlockedIds = {}
 local adminIds = {}
+local earlyAccessIds = {}
+local earlyAccessPass = {}
 for _, entry in Config.Roster do
 	if Characters[entry.Id] then
 		if entry.Admin then
 			adminIds[entry.Id] = true
+		elseif entry.EarlyAccess then
+			earlyAccessIds[entry.Id] = true
+			earlyAccessPass[entry.Id] = entry.GamePassId or 0
 		elseif not entry.Locked then
 			unlockedIds[entry.Id] = true
 		end
 	end
+end
+
+-- Ownership cache: [player][id] = bool.
+local owns = setmetatable({}, { __mode = "k" })
+
+-- Does the player have access to an early-access character?
+local function ownsEarlyAccess(player, id)
+	-- The game owner and admins always have access (for testing / staff).
+	if player.UserId == game.CreatorId or player:GetAttribute("Admin") == true then
+		player:SetAttribute("Owns_" .. id, true)
+		return true
+	end
+	local cache = owns[player]
+	if cache and cache[id] ~= nil then
+		return cache[id]
+	end
+	if not cache then
+		cache = {}
+		owns[player] = cache
+	end
+	local passId = earlyAccessPass[id] or 0
+	local result = false
+	if passId ~= 0 then
+		local ok, hasPass = pcall(function()
+			return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+		end)
+		result = ok and hasPass or false
+	end
+	cache[id] = result
+	player:SetAttribute("Owns_" .. id, result)
+	return result
 end
 
 local function moduleFor(player)
@@ -207,39 +247,67 @@ end)
 -- Character selection
 -- ========================================================================
 
-local function canSelect(player, id)
-	if unlockedIds[id] then
-		return true
-	end
-	if adminIds[id] and player:GetAttribute("Admin") == true then
-		return true
-	end
-	return false
-end
-
-SelectCharacter.OnServerEvent:Connect(function(player, id)
-	if type(id) ~= "string" or not canSelect(player, id) then
-		return
-	end
+-- Actually assign a character and respawn the player into it.
+local function doSelect(player, id)
 	if player:GetAttribute("SelectedCharacter") == id then
 		return
 	end
-
-	-- Drop any active ult on the current character before switching.
 	if player.Character then
 		local current = moduleFor(player)
 		if current.DeactivateUlt then
 			current.DeactivateUlt(player, player.Character)
 		end
 	end
-
 	player:SetAttribute("SelectedCharacter", id)
 	player:SetAttribute("UltCharge", 0)
 	cooldowns[player] = {}
 	dashReady[player] = nil
-
-	-- Respawn so any character-specific setup applies cleanly.
 	player:LoadCharacter()
+end
+
+SelectCharacter.OnServerEvent:Connect(function(player, id)
+	if type(id) ~= "string" or not Characters[id] then
+		return
+	end
+
+	if unlockedIds[id] then
+		doSelect(player, id)
+	elseif adminIds[id] then
+		if player:GetAttribute("Admin") == true then
+			doSelect(player, id)
+		end
+	elseif earlyAccessIds[id] then
+		if ownsEarlyAccess(player, id) then
+			doSelect(player, id)
+		else
+			-- Not owned yet: send them to the Game Pass purchase prompt.
+			local passId = earlyAccessPass[id] or 0
+			if passId ~= 0 then
+				pcall(function()
+					MarketplaceService:PromptGamePassPurchase(player, passId)
+				end)
+			end
+		end
+	end
+end)
+
+-- When an early-access Game Pass is purchased, grant + auto-select it.
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, purchasedPassId, wasPurchased)
+	if not wasPurchased then
+		return
+	end
+	for id, passId in earlyAccessPass do
+		if passId == purchasedPassId then
+			local cache = owns[player]
+			if not cache then
+				cache = {}
+				owns[player] = cache
+			end
+			cache[id] = true
+			player:SetAttribute("Owns_" .. id, true)
+			doSelect(player, id)
+		end
+	end
 end)
 
 -- ========================================================================
@@ -335,6 +403,14 @@ Players.PlayerAdded:Connect(function(player)
 	if player.Character then
 		onCharacterAdded(player, player.Character)
 	end
+
+	-- Pre-check early-access ownership so the menu can show OWNED (async so
+	-- it never blocks the join).
+	task.spawn(function()
+		for id in earlyAccessIds do
+			ownsEarlyAccess(player, id)
+		end
+	end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
