@@ -1,7 +1,7 @@
 --[[
 	AdminPanel.lua
-	A hidden admin panel. Press  \  (backslash) to toggle it, type the code
-	and submit. The code is validated on the server (AdminAuth); on success
+	A hidden admin panel. Press  K  to toggle it, type the code and submit.
+	The code is validated on the server (AdminAuth); on success
 	the server grants the Admin attribute, which unlocks the admin-only
 	character in the select menu.
 ]]
@@ -148,12 +148,12 @@ function AdminPanel.Init()
 		setOpen(false)
 	end)
 
-	-- Toggle with the backslash key.
+	-- Toggle with the K key.
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then
 			return
 		end
-		if input.KeyCode == Enum.KeyCode.Backslash then
+		if input.KeyCode == Enum.KeyCode.K then
 			setOpen(not backdrop.Visible)
 		end
 	end)
