@@ -4571,7 +4571,7 @@ local GOLD = Color3.fromRGB(240, 200, 90)
 
 local MainMenu = {}
 
-local orbitConn
+local orbiting = false
 local controls
 
 local function corner(instance, radius)
@@ -4612,8 +4612,15 @@ local function startOrbit()
 	local height = 480
 	local radius = 220
 	local angle = 0
+	orbiting = true
 	Camera.CameraType = Enum.CameraType.Scriptable
-	orbitConn = RunService:BindToRenderStep("MenuCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+	-- BindToRenderStep returns nothing, so track state with a flag and stop
+	-- driving the camera once the orbit ends (the bound fn can fire one more
+	-- time after Unbind is requested).
+	RunService:BindToRenderStep("MenuCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+		if not orbiting then
+			return
+		end
 		angle += dt * 0.05
 		local pos = center + Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
 		Camera.CFrame = CFrame.lookAt(pos, center)
@@ -4621,13 +4628,13 @@ local function startOrbit()
 end
 
 local function stopOrbit()
-	if orbitConn then
+	orbiting = false
+	pcall(function()
 		RunService:UnbindFromRenderStep("MenuCamera")
-		orbitConn = nil
-	end
-	Camera.CameraType = Enum.CameraType.Custom
+	end)
 	local character = LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	Camera.CameraType = Enum.CameraType.Custom
 	if humanoid then
 		Camera.CameraSubject = humanoid
 	end
