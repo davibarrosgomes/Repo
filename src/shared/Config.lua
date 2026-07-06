@@ -64,6 +64,17 @@ Config.Roster = {
 		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
 		Ult = "Gamma Knife",
 	},
+	{
+		-- Admin-only OP character. Hidden from normal players; only shown +
+		-- selectable after entering the admin code (validated server-side).
+		Id = "Tung",
+		Name = "Tung Tung Tung Sahur",
+		Title = "Brainrot King  (ADMIN)",
+		Color = Color3.fromRGB(196, 150, 70),
+		Admin = true,
+		Moves = { "Sahur Smash", "Tung Barrage", "Brainrot Spin", "Bat Combo" },
+		Ult = "The King",
+	},
 }
 
 -- ========================================================================
@@ -577,8 +588,116 @@ local AceGreatFlame = {
 }
 
 -- ========================================================================
+-- Tung Tung Tung Sahur - ADMIN-ONLY OP character (bat brainrot king).
+-- 2x health + 1.5x damage (applied via HealthMult/DamageMult below). Every
+-- ult move is a one-hit kill (Damage far above any health pool).
+-- ========================================================================
+local ONE_HIT_KILL = 100000
+
+local TungBase = {
+	[1] = {
+		Id = "SahurSmash",
+		Name = "Sahur Smash",
+		Damage = 22,
+		Cooldown = 7,
+		WindUp = 0.38,
+		Range = 13,
+		Width = 9,
+		Knockback = 85,
+		RagdollTime = 2,
+	},
+	[2] = {
+		Id = "TungBarrage",
+		Name = "Tung Barrage",
+		DamagePerHit = 5,
+		Hits = 8,
+		Duration = 1.2,
+		Cooldown = 10,
+		WindUp = 0.3,
+		Range = 14,
+		Width = 9,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.8,
+	},
+	[3] = {
+		Id = "BrainrotSpin",
+		Name = "Brainrot Spin",
+		DamagePerHit = 8,
+		Hits = 3,
+		HitInterval = 0.16,
+		Cooldown = 11,
+		WindUp = 0.25,
+		Radius = 13,
+		Knockback = 60,
+		RagdollTime = 1.5,
+	},
+	[4] = {
+		Id = "BatCombo",
+		Name = "Bat Combo",
+		DamagePerHit = 5,
+		Hits = 5,
+		HitInterval = 0.12,
+		Cooldown = 6,
+		DashRange = 28,
+		Range = 8,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.5,
+	},
+}
+
+local TungKing = {
+	[1] = {
+		Id = "RoyalDecree",
+		Name = "Royal Decree",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 5,
+		WindUp = 0.3,
+		Range = 17,
+		Width = 11,
+		Knockback = 130,
+		RagdollTime = 3,
+	},
+	[2] = {
+		Id = "KingsJudgement",
+		Name = "King's Judgement",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 1,
+		HitInterval = 0.1,
+		Cooldown = 9,
+		WindUp = 0.4,
+		Radius = 20,
+		Knockback = 110,
+		RagdollTime = 3,
+	},
+	[3] = {
+		Id = "SahurRush",
+		Name = "Sahur Sahur Sahur",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 3,
+		HitInterval = 0.1,
+		Cooldown = 8,
+		DashRange = 34,
+		Range = 9,
+		FinalKnockback = 120,
+		FinalRagdoll = 3,
+	},
+	[4] = {
+		Id = "CrownCrush",
+		Name = "Crown Crush",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 12,
+		WindUp = 0.55,
+		Range = 19,
+		Width = 15,
+		Knockback = 150,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
+-- HealthMult / DamageMult (optional) scale a character's stats.
 -- Luffy reuses the top-level tables above; new characters add an entry.
 -- ========================================================================
 Config.Movesets = {
@@ -586,6 +705,7 @@ Config.Movesets = {
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
+	Tung = { UltName = "The King", Base = TungBase, Ult = TungKing, HealthMult = 2, DamageMult = 1.5 },
 }
 
 -- ========================================================================

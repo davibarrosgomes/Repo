@@ -81,6 +81,17 @@ Config.Roster = {
 		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
 		Ult = "Gamma Knife",
 	},
+	{
+		-- Admin-only OP character. Hidden from normal players; only shown +
+		-- selectable after entering the admin code (validated server-side).
+		Id = "Tung",
+		Name = "Tung Tung Tung Sahur",
+		Title = "Brainrot King  (ADMIN)",
+		Color = Color3.fromRGB(196, 150, 70),
+		Admin = true,
+		Moves = { "Sahur Smash", "Tung Barrage", "Brainrot Spin", "Bat Combo" },
+		Ult = "The King",
+	},
 }
 
 -- ========================================================================
@@ -594,8 +605,116 @@ local AceGreatFlame = {
 }
 
 -- ========================================================================
+-- Tung Tung Tung Sahur - ADMIN-ONLY OP character (bat brainrot king).
+-- 2x health + 1.5x damage (applied via HealthMult/DamageMult below). Every
+-- ult move is a one-hit kill (Damage far above any health pool).
+-- ========================================================================
+local ONE_HIT_KILL = 100000
+
+local TungBase = {
+	[1] = {
+		Id = "SahurSmash",
+		Name = "Sahur Smash",
+		Damage = 22,
+		Cooldown = 7,
+		WindUp = 0.38,
+		Range = 13,
+		Width = 9,
+		Knockback = 85,
+		RagdollTime = 2,
+	},
+	[2] = {
+		Id = "TungBarrage",
+		Name = "Tung Barrage",
+		DamagePerHit = 5,
+		Hits = 8,
+		Duration = 1.2,
+		Cooldown = 10,
+		WindUp = 0.3,
+		Range = 14,
+		Width = 9,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.8,
+	},
+	[3] = {
+		Id = "BrainrotSpin",
+		Name = "Brainrot Spin",
+		DamagePerHit = 8,
+		Hits = 3,
+		HitInterval = 0.16,
+		Cooldown = 11,
+		WindUp = 0.25,
+		Radius = 13,
+		Knockback = 60,
+		RagdollTime = 1.5,
+	},
+	[4] = {
+		Id = "BatCombo",
+		Name = "Bat Combo",
+		DamagePerHit = 5,
+		Hits = 5,
+		HitInterval = 0.12,
+		Cooldown = 6,
+		DashRange = 28,
+		Range = 8,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.5,
+	},
+}
+
+local TungKing = {
+	[1] = {
+		Id = "RoyalDecree",
+		Name = "Royal Decree",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 5,
+		WindUp = 0.3,
+		Range = 17,
+		Width = 11,
+		Knockback = 130,
+		RagdollTime = 3,
+	},
+	[2] = {
+		Id = "KingsJudgement",
+		Name = "King's Judgement",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 1,
+		HitInterval = 0.1,
+		Cooldown = 9,
+		WindUp = 0.4,
+		Radius = 20,
+		Knockback = 110,
+		RagdollTime = 3,
+	},
+	[3] = {
+		Id = "SahurRush",
+		Name = "Sahur Sahur Sahur",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 3,
+		HitInterval = 0.1,
+		Cooldown = 8,
+		DashRange = 34,
+		Range = 9,
+		FinalKnockback = 120,
+		FinalRagdoll = 3,
+	},
+	[4] = {
+		Id = "CrownCrush",
+		Name = "Crown Crush",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 12,
+		WindUp = 0.55,
+		Range = 19,
+		Width = 15,
+		Knockback = 150,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
+-- HealthMult / DamageMult (optional) scale a character's stats.
 -- Luffy reuses the top-level tables above; new characters add an entry.
 -- ========================================================================
 Config.Movesets = {
@@ -603,6 +722,7 @@ Config.Movesets = {
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
+	Tung = { UltName = "The King", Base = TungBase, Ult = TungKing, HealthMult = 2, DamageMult = 1.5 },
 }
 
 -- ========================================================================
@@ -649,6 +769,7 @@ local Remotes = (function()
 	Dash             client -> server : ()
 	Block            client -> server : (enabled: boolean)
 	SelectCharacter  client -> server : (characterId: string)
+	AdminAuth        client -> server : (code: string) ; server -> client : (granted: boolean)
 	VFX          server -> client : (effectName: string, data: table)
 	HUDUpdate    server -> client : (kind: string, ...)
 ]]
@@ -656,7 +777,7 @@ local Remotes = (function()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "VFX", "HUDUpdate" }
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "AdminAuth", "VFX", "HUDUpdate" }
 
 local Remotes = {}
 
@@ -3030,6 +3151,250 @@ function Effects.GreatFlameEnd(data)
 end
 
 -- ========================================================================
+-- Tung Tung Tung Sahur effect handlers (bat + royal one-hit-kill ult)
+-- ========================================================================
+
+local WOOD = Color3.fromRGB(150, 108, 62)
+local ROYAL_GOLD = Color3.fromRGB(255, 210, 90)
+
+function Effects.TungM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	punchArm(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -30 or 30, 6, WOOD, 5, 0.16)
+end
+
+local function batSmash(character, color, big)
+	local r = root(character)
+	if not r then
+		return
+	end
+	pushBothArms(character, 0.08, 0.14)
+	slash(character, 6, big and 13 or 10, color, 5, 0.22)
+	local hit = r.Position + r.CFrame.LookVector * 6
+	impact(hit, { Color = color, Scale = big and 1.8 or 1.3, Heavy = true, CrackColor = Color3.fromRGB(60, 45, 30) })
+end
+
+function Effects.SahurSmash(data)
+	local cfg = Config.Movesets.Tung.Base[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, WOOD, false)
+	end)
+end
+
+function Effects.TungBarrage(data)
+	local character = data.Character
+	speedLines(character, data.Duration or 1.2, WOOD)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed < (data.Duration or 1.2) do
+			punchArm(character, side, 0.05, 0.02, 0.95)
+			slash(character, side == "Right" and -26 or 26, 7, WOOD, 5, 0.12)
+			side = side == "Right" and "Left" or "Right"
+			elapsed += task.wait(0.1)
+		end
+	end)
+end
+
+function Effects.BrainrotSpin(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Tung.Base[3]
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 50, cfg.Radius, WOOD)
+			end
+			local r = root(character)
+			if r then
+				shake(r.Position, 0.3, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.BatCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		slash(character, 28, 6, WOOD, 5, 0.15)
+		return
+	end
+	afterImage(character, WOOD, 0.4)
+	task.spawn(function()
+		for i = 1, 5 do
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			slash(character, i % 2 == 0 and 26 or -26, 6, WOOD, 4.5, 0.13)
+			task.wait(0.09)
+		end
+	end)
+end
+
+-- Royal ult moves: gilded, extra dramatic.
+local function royalHit(character, offset, scale)
+	local r = root(character)
+	if not r then
+		return
+	end
+	local hit = r.Position + r.CFrame.LookVector * (offset or 6)
+	flameArc(character, -14, 12, 6) -- gold streak reuse (fire arc tinted below)
+	impact(hit, { Color = ROYAL_GOLD, Scale = scale or 2, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 20) })
+	shockwave(hit, 40, ROYAL_GOLD, 0.5, 1.2)
+	screenFlash(ROYAL_GOLD, 0.2, 0.2)
+end
+
+function Effects.RoyalDecree(data)
+	local cfg = Config.Movesets.Tung.Ult[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, ROYAL_GOLD, true)
+		royalHit(data.Character, 8, 2.2)
+	end)
+end
+
+function Effects.KingsJudgement(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Tung.Ult[2]
+	task.delay(cfg.WindUp, function()
+		for a = 0, 315, 45 do
+			arcSlash(character, a, cfg.Radius, ROYAL_GOLD)
+		end
+		local r = root(character)
+		if r then
+			groundDisc(r.Position, cfg.Radius * 2, ROYAL_GOLD, 0.6)
+			impact(r.Position, { Color = ROYAL_GOLD, Scale = 2.6, Heavy = true })
+			screenFlash(ROYAL_GOLD, 0.25, 0.25)
+			shake(r.Position, 1, 0.4)
+		end
+	end)
+end
+
+function Effects.SahurRush(data)
+	local character = data.Character
+	if data.Whiff then
+		slash(character, 28, 7, ROYAL_GOLD, 5, 0.16)
+		return
+	end
+	afterImage(character, ROYAL_GOLD, 0.5)
+	task.spawn(function()
+		for i = 1, 3 do
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 1.05)
+			slash(character, i % 2 == 0 and 30 or -30, 8, ROYAL_GOLD, 5, 0.14)
+			task.wait(0.1)
+		end
+		royalHit(character, 5, 1.8)
+	end)
+end
+
+function Effects.CrownCrush(data)
+	local cfg = Config.Movesets.Tung.Ult[4]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, ROYAL_GOLD, true)
+		royalHit(data.Character, 8, 2.6)
+		local r = root(data.Character)
+		if r then
+			fovPunch(r.Position, 10, 0.4)
+		end
+	end)
+end
+
+-- The King's arrival cutscene: crown drops onto the head + banner for all.
+function Effects.KingCrown(data)
+	local character = data.Character
+	local r = root(character)
+	local head = character:FindFirstChild("Head")
+	local landPos = head and head.Position or (r and r.Position + Vector3.new(0, 2, 0))
+	if landPos then
+		-- A big golden crown falls from the sky with a light beam.
+		local crown = makePart({
+			Size = Vector3.new(5, 3, 5),
+			CFrame = CFrame.new(landPos + Vector3.new(0, 60, 0)),
+			Color = ROYAL_GOLD,
+			Material = Enum.Material.Neon,
+			Transparency = 0.05,
+		})
+		addTrail(crown, ROYAL_GOLD, 0.5, 3)
+		local beam = makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(120, 8, 8),
+			CFrame = CFrame.new(landPos + Vector3.new(0, 60, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = ROYAL_GOLD,
+			Transparency = 0.6,
+		})
+		Debris:AddItem(beam, 1.2)
+		tween(crown, 0.7, { CFrame = CFrame.new(landPos + Vector3.new(0, 2.6, 0)) }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		task.delay(0.7, function()
+			shockwave(landPos, 40, ROYAL_GOLD, 0.6, 1.4)
+			sparks(landPos, ROYAL_GOLD, 60, 45, 2.4)
+			if r then
+				shake(r.Position, 1.4, 0.5)
+			end
+			tween(crown, 0.25, { Transparency = 1 })
+		end)
+		Debris:AddItem(crown, 1.2)
+	end
+
+	-- Full-screen "THE KING HAS ARRIVED" banner for everyone.
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "KingCutscene"
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 60
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	local dim = Instance.new("Frame")
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.new(0, 0, 0)
+	dim.BackgroundTransparency = 0.4
+	dim.Parent = gui
+
+	local banner = Instance.new("TextLabel")
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.5)
+	banner.Size = UDim2.fromScale(0.9, 0.2)
+	banner.BackgroundTransparency = 1
+	banner.Font = Enum.Font.GothamBlack
+	banner.TextScaled = true
+	banner.TextColor3 = ROYAL_GOLD
+	banner.TextStrokeColor3 = Color3.fromRGB(60, 40, 0)
+	banner.TextStrokeTransparency = 0
+	banner.TextTransparency = 1
+	banner.Text = "THE KING HAS ARRIVED"
+	banner.Parent = gui
+
+	local subtitle = Instance.new("TextLabel")
+	subtitle.AnchorPoint = Vector2.new(0.5, 0)
+	subtitle.Position = UDim2.fromScale(0.5, 0.62)
+	subtitle.Size = UDim2.fromScale(0.6, 0.05)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextScaled = true
+	subtitle.TextColor3 = Color3.fromRGB(240, 230, 200)
+	subtitle.TextTransparency = 1
+	subtitle.Text = data.Character and data.Character.Name or "Tung Tung Tung Sahur"
+	subtitle.Parent = gui
+
+	tween(dim, 0.3, { BackgroundTransparency = 0.55 })
+	tween(banner, 0.4, { TextTransparency = 0 })
+	tween(subtitle, 0.6, { TextTransparency = 0 })
+	screenFlash(ROYAL_GOLD, 0.5, 0.6)
+
+	task.delay(2.2, function()
+		tween(banner, 0.5, { TextTransparency = 1 })
+		tween(subtitle, 0.5, { TextTransparency = 1 })
+		tween(dim, 0.5, { BackgroundTransparency = 1 })
+		task.delay(0.6, function()
+			gui:Destroy()
+		end)
+	end)
+end
+
+function Effects.KingCrownEnd(data)
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 20, ROYAL_GOLD, 0.5, 1)
+	end
+end
+
+-- ========================================================================
 -- Wiring
 -- ========================================================================
 
@@ -3075,7 +3440,7 @@ local LOCKED = Color3.fromRGB(90, 90, 100)
 local CharacterSelect = {}
 
 local cards = {} -- [id] = { select button, stroke, statusLabel }
-local panel, backdrop, topButton
+local panel, backdrop, topButton, scroller
 
 local function corner(instance, radius)
 	local c = Instance.new("UICorner")
@@ -3365,7 +3730,7 @@ function CharacterSelect.Init()
 	corner(closeButton, 7)
 
 	-- Scrolling row of cards.
-	local scroller = Instance.new("ScrollingFrame")
+	scroller = Instance.new("ScrollingFrame")
 	scroller.Position = UDim2.new(0, 0, 0, 42)
 	scroller.Size = UDim2.new(1, 0, 1, -42)
 	scroller.BackgroundTransparency = 1
@@ -3382,9 +3747,7 @@ function CharacterSelect.Init()
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = scroller
 
-	for order, entry in Config.Roster do
-		buildCard(entry, scroller, order)
-	end
+	CharacterSelect.RebuildCards()
 
 	-- Wiring.
 	topButton.Activated:Connect(function()
@@ -3397,11 +3760,203 @@ function CharacterSelect.Init()
 		setOpen(false)
 	end)
 	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
+	-- Reveal the admin character the moment access is granted.
+	LocalPlayer:GetAttributeChangedSignal("Admin"):Connect(CharacterSelect.RebuildCards)
 
 	refreshStates()
 end
 
+-- Builds the card row, skipping admin-only characters unless the local
+-- player has been granted admin access.
+function CharacterSelect.RebuildCards()
+	if not scroller then
+		return
+	end
+	for _, child in scroller:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	table.clear(cards)
+
+	local isAdmin = LocalPlayer:GetAttribute("Admin") == true
+	local order = 0
+	for _, entry in Config.Roster do
+		if not entry.Admin or isAdmin then
+			order += 1
+			buildCard(entry, scroller, order)
+		end
+	end
+	refreshStates()
+end
+
 return CharacterSelect
+end)()
+
+-- ====================================================================
+-- MODULE: AdminPanel   (src/client/AdminPanel.lua)
+-- ====================================================================
+local AdminPanel = (function()
+--[[
+	AdminPanel.lua
+	A hidden admin panel. Press  \  (backslash) to toggle it, type the code
+	and submit. The code is validated on the server (AdminAuth); on success
+	the server grants the Admin attribute, which unlocks the admin-only
+	character in the select menu.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+
+local LocalPlayer = Players.LocalPlayer
+local AdminAuth = Remotes.get("AdminAuth")
+
+local BG = Color3.fromRGB(20, 20, 26)
+local GOLD = Color3.fromRGB(230, 190, 80)
+
+local AdminPanel = {}
+
+local backdrop, statusLabel, codeBox
+
+local function corner(instance, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = instance
+end
+
+local function setOpen(open)
+	backdrop.Visible = open
+	if open then
+		codeBox.Text = ""
+		statusLabel.Text = "Enter the access code."
+		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+		codeBox:CaptureFocus()
+	end
+end
+
+function AdminPanel.Init()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AdminPanelGui"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 40
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	backdrop = Instance.new("TextButton")
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.5
+	backdrop.Text = ""
+	backdrop.AutoButtonColor = false
+	backdrop.Visible = false
+	backdrop.Parent = gui
+
+	local panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromOffset(360, 220)
+	panel.BackgroundColor3 = BG
+	panel.Parent = backdrop
+	corner(panel, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = GOLD
+	stroke.Thickness = 2
+	stroke.Transparency = 0.3
+	stroke.Parent = panel
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.fromOffset(20, 16)
+	title.Size = UDim2.new(1, -40, 0, 28)
+	title.Font = Enum.Font.GothamBlack
+	title.TextSize = 20
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = GOLD
+	title.Text = "ADMIN PANEL"
+	title.Parent = panel
+
+	statusLabel = Instance.new("TextLabel")
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Position = UDim2.fromOffset(20, 50)
+	statusLabel.Size = UDim2.new(1, -40, 0, 20)
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 13
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+	statusLabel.Text = "Enter the access code."
+	statusLabel.Parent = panel
+
+	codeBox = Instance.new("TextBox")
+	codeBox.Position = UDim2.fromOffset(20, 82)
+	codeBox.Size = UDim2.new(1, -40, 0, 44)
+	codeBox.Font = Enum.Font.Gotham
+	codeBox.TextSize = 16
+	codeBox.TextColor3 = Color3.new(1, 1, 1)
+	codeBox.PlaceholderText = "Access code"
+	codeBox.Text = ""
+	codeBox.ClearTextOnFocus = false
+	codeBox.BackgroundColor3 = Color3.fromRGB(34, 34, 42)
+	codeBox.Parent = panel
+	corner(codeBox, 8)
+
+	local submit = Instance.new("TextButton")
+	submit.AnchorPoint = Vector2.new(0.5, 1)
+	submit.Position = UDim2.new(0.5, 0, 1, -16)
+	submit.Size = UDim2.new(1, -40, 0, 42)
+	submit.Font = Enum.Font.GothamBold
+	submit.TextSize = 15
+	submit.TextColor3 = Color3.fromRGB(20, 20, 20)
+	submit.BackgroundColor3 = GOLD
+	submit.Text = "AUTHENTICATE"
+	submit.Parent = panel
+	corner(submit, 8)
+
+	local function trySubmit()
+		if codeBox.Text ~= "" then
+			statusLabel.Text = "Checking..."
+			statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+			AdminAuth:FireServer(codeBox.Text)
+		end
+	end
+	submit.Activated:Connect(trySubmit)
+	codeBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			trySubmit()
+		end
+	end)
+
+	AdminAuth.OnClientEvent:Connect(function(granted)
+		if granted then
+			statusLabel.Text = "ACCESS GRANTED - the King is unlocked."
+			statusLabel.TextColor3 = Color3.fromRGB(120, 230, 120)
+			task.delay(1.2, function()
+				setOpen(false)
+			end)
+		else
+			statusLabel.Text = "ACCESS DENIED."
+			statusLabel.TextColor3 = Color3.fromRGB(235, 90, 90)
+			codeBox.Text = ""
+		end
+	end)
+
+	backdrop.Activated:Connect(function()
+		setOpen(false)
+	end)
+
+	-- Toggle with the backslash key.
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Backslash then
+			setOpen(not backdrop.Visible)
+		end
+	end)
+end
+
+return AdminPanel
 end)()
 
 -- ====================================================================
@@ -3437,6 +3992,7 @@ local HUDUpdate = Remotes.get("HUDUpdate")
 HUD.Init()
 VFXClient.Init()
 CharacterSelect.Init()
+AdminPanel.Init()
 
 local SKILL_KEYS = {
 	[Enum.KeyCode.One] = 1,

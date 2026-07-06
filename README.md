@@ -10,6 +10,12 @@ Playable characters (pick via the topbar character button):
 - **Portgas D. Ace** — ranged fire zoner (projectiles) + a **Great Flame
   Commandment** ultimate; his hits also burn
 
+**Admin character:** press **`\`** (backslash) to open the Admin Panel and
+enter the access code to unlock **Tung Tung Tung Sahur** — an OP bat fighter
+with 2x health, 1.5x damage, and a "The King" ultimate whose every move is a
+one-hit kill (with a crown cutscene). The code is validated server-side and
+never ships in client code.
+
 Each character has a full 4-slot base moveset and an ultimate transformation
 that replaces all four skills.
 

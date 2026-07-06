@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX16"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="ReplicatedStorage" referent="RBX17"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">--[[
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX18"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="ReplicatedStorage" referent="RBX19"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">--[[
 	Config.lua
 	Central balance / tuning data for the whole game.
 	All damage numbers, cooldowns, ranges and timings live here so the
@@ -63,6 +63,17 @@ Config.Roster = {
 		Locked = true,
 		Moves = { "Shambles", "Injection Shot", "Counter Shock", "Room Combo" },
 		Ult = "Gamma Knife",
+	},
+	{
+		-- Admin-only OP character. Hidden from normal players; only shown +
+		-- selectable after entering the admin code (validated server-side).
+		Id = "Tung",
+		Name = "Tung Tung Tung Sahur",
+		Title = "Brainrot King  (ADMIN)",
+		Color = Color3.fromRGB(196, 150, 70),
+		Admin = true,
+		Moves = { "Sahur Smash", "Tung Barrage", "Brainrot Spin", "Bat Combo" },
+		Ult = "The King",
 	},
 }
 
@@ -577,8 +588,116 @@ local AceGreatFlame = {
 }
 
 -- ========================================================================
+-- Tung Tung Tung Sahur - ADMIN-ONLY OP character (bat brainrot king).
+-- 2x health + 1.5x damage (applied via HealthMult/DamageMult below). Every
+-- ult move is a one-hit kill (Damage far above any health pool).
+-- ========================================================================
+local ONE_HIT_KILL = 100000
+
+local TungBase = {
+	[1] = {
+		Id = "SahurSmash",
+		Name = "Sahur Smash",
+		Damage = 22,
+		Cooldown = 7,
+		WindUp = 0.38,
+		Range = 13,
+		Width = 9,
+		Knockback = 85,
+		RagdollTime = 2,
+	},
+	[2] = {
+		Id = "TungBarrage",
+		Name = "Tung Barrage",
+		DamagePerHit = 5,
+		Hits = 8,
+		Duration = 1.2,
+		Cooldown = 10,
+		WindUp = 0.3,
+		Range = 14,
+		Width = 9,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.8,
+	},
+	[3] = {
+		Id = "BrainrotSpin",
+		Name = "Brainrot Spin",
+		DamagePerHit = 8,
+		Hits = 3,
+		HitInterval = 0.16,
+		Cooldown = 11,
+		WindUp = 0.25,
+		Radius = 13,
+		Knockback = 60,
+		RagdollTime = 1.5,
+	},
+	[4] = {
+		Id = "BatCombo",
+		Name = "Bat Combo",
+		DamagePerHit = 5,
+		Hits = 5,
+		HitInterval = 0.12,
+		Cooldown = 6,
+		DashRange = 28,
+		Range = 8,
+		FinalKnockback = 72,
+		FinalRagdoll = 1.5,
+	},
+}
+
+local TungKing = {
+	[1] = {
+		Id = "RoyalDecree",
+		Name = "Royal Decree",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 5,
+		WindUp = 0.3,
+		Range = 17,
+		Width = 11,
+		Knockback = 130,
+		RagdollTime = 3,
+	},
+	[2] = {
+		Id = "KingsJudgement",
+		Name = "King's Judgement",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 1,
+		HitInterval = 0.1,
+		Cooldown = 9,
+		WindUp = 0.4,
+		Radius = 20,
+		Knockback = 110,
+		RagdollTime = 3,
+	},
+	[3] = {
+		Id = "SahurRush",
+		Name = "Sahur Sahur Sahur",
+		DamagePerHit = ONE_HIT_KILL,
+		Hits = 3,
+		HitInterval = 0.1,
+		Cooldown = 8,
+		DashRange = 34,
+		Range = 9,
+		FinalKnockback = 120,
+		FinalRagdoll = 3,
+	},
+	[4] = {
+		Id = "CrownCrush",
+		Name = "Crown Crush",
+		Damage = ONE_HIT_KILL,
+		Cooldown = 12,
+		WindUp = 0.55,
+		Range = 19,
+		Width = 15,
+		Knockback = 150,
+		RagdollTime = 3,
+	},
+}
+
+-- ========================================================================
 -- Per-character moveset registry (consumed by character modules + HUD).
 -- Base = slots 1-4 normally; Ult = slots 1-4 while the ult is active.
+-- HealthMult / DamageMult (optional) scale a character's stats.
 -- Luffy reuses the top-level tables above; new characters add an entry.
 -- ========================================================================
 Config.Movesets = {
@@ -586,6 +705,7 @@ Config.Movesets = {
 	Zoro = { UltName = "Ashura", Base = ZoroBase, Ult = ZoroAshura },
 	Sanji = { UltName = "Diable Jambe", Base = SanjiBase, Ult = SanjiDiable },
 	Ace = { UltName = "Great Flame Commandment", Base = AceBase, Ult = AceGreatFlame },
+	Tung = { UltName = "The King", Base = TungBase, Ult = TungKing, HealthMult = 2, DamageMult = 1.5 },
 }
 
 -- ========================================================================
@@ -626,6 +746,7 @@ return Config
 	Dash             client -&gt; server : ()
 	Block            client -&gt; server : (enabled: boolean)
 	SelectCharacter  client -&gt; server : (characterId: string)
+	AdminAuth        client -&gt; server : (code: string) ; server -&gt; client : (granted: boolean)
 	VFX          server -&gt; client : (effectName: string, data: table)
 	HUDUpdate    server -&gt; client : (kind: string, ...)
 ]]
@@ -633,7 +754,7 @@ return Config
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "VFX", "HUDUpdate" }
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "AdminAuth", "VFX", "HUDUpdate" }
 
 local Remotes = {}
 
@@ -670,7 +791,7 @@ function Remotes.get(name)
 end
 
 return Remotes
-</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX18"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX11"><Properties><string name="Name">Server</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX20"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX12"><Properties><string name="Name">Server</string><ProtectedString name="Source">--[[
 	init.server.lua
 	Main server entry point: player/character setup, remote handling,
 	server-side cooldown enforcement, KO leaderboard.
@@ -689,6 +810,7 @@ local Luffy = require(script.Characters.Luffy)
 local Zoro = require(script.Characters.Zoro)
 local Sanji = require(script.Characters.Sanji)
 local Ace = require(script.Characters.Ace)
+local Tung = require(script.Characters.Tung)
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -696,8 +818,13 @@ local ActivateUlt = Remotes.get("ActivateUlt")
 local Dash = Remotes.get("Dash")
 local Block = Remotes.get("Block")
 local SelectCharacter = Remotes.get("SelectCharacter")
+local AdminAuth = Remotes.get("AdminAuth")
 local VFX = Remotes.get("VFX")
 local HUDUpdate = Remotes.get("HUDUpdate")
+
+-- The admin code lives ONLY on the server (ServerScriptService is never
+-- replicated to clients), so it never ships in client-readable code.
+local ADMIN_CODE = "GomesFamily"
 
 MapBuilder.Build()
 
@@ -712,14 +839,21 @@ local Characters = {
 	Zoro = Zoro,
 	Sanji = Sanji,
 	Ace = Ace,
+	Tung = Tung,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
--- Which roster ids are actually selectable (unlocked + have a module).
+-- Which roster ids are selectable by anyone (unlocked + have a module), and
+-- which are admin-only (require the Admin attribute, granted by the code).
 local unlockedIds = {}
+local adminIds = {}
 for _, entry in Config.Roster do
-	if not entry.Locked and Characters[entry.Id] then
-		unlockedIds[entry.Id] = true
+	if Characters[entry.Id] then
+		if entry.Admin then
+			adminIds[entry.Id] = true
+		elseif not entry.Locked then
+			unlockedIds[entry.Id] = true
+		end
 	end
 end
 
@@ -866,8 +1000,18 @@ end)
 -- Character selection
 -- ========================================================================
 
+local function canSelect(player, id)
+	if unlockedIds[id] then
+		return true
+	end
+	if adminIds[id] and player:GetAttribute("Admin") == true then
+		return true
+	end
+	return false
+end
+
 SelectCharacter.OnServerEvent:Connect(function(player, id)
-	if type(id) ~= "string" or not unlockedIds[id] then
+	if type(id) ~= "string" or not canSelect(player, id) then
 		return
 	end
 	if player:GetAttribute("SelectedCharacter") == id then
@@ -892,18 +1036,46 @@ SelectCharacter.OnServerEvent:Connect(function(player, id)
 end)
 
 -- ========================================================================
+-- Admin authentication
+-- The code is validated here on the server; the client only ever sends a
+-- guess. A short per-player cooldown discourages brute-forcing.
+-- ========================================================================
+local adminTry = {}
+AdminAuth.OnServerEvent:Connect(function(player, code)
+	local now = os.clock()
+	if now &lt; (adminTry[player] or 0) then
+		return
+	end
+	adminTry[player] = now + 1
+
+	if type(code) == "string" and code == ADMIN_CODE then
+		player:SetAttribute("Admin", true)
+		AdminAuth:FireClient(player, true)
+	else
+		AdminAuth:FireClient(player, false)
+	end
+end)
+
+-- ========================================================================
 -- Player / character lifecycle
 -- ========================================================================
 
 local function onCharacterAdded(player, character)
 	local humanoid = character:WaitForChild("Humanoid")
-	humanoid.MaxHealth = Config.Character.MaxHealth
-	humanoid.Health = Config.Character.MaxHealth
+
+	-- Per-character stat multipliers (OP characters can have more health /
+	-- harder hits). DamageMult is read by Combat.DealDamage.
+	local moveset = Config.Movesets[player:GetAttribute("SelectedCharacter") or DEFAULT_CHARACTER]
+	local healthMult = (moveset and moveset.HealthMult) or 1
+	local maxHealth = Config.Character.MaxHealth * healthMult
+	humanoid.MaxHealth = maxHealth
+	humanoid.Health = maxHealth
 	humanoid.BreakJointsOnDeath = false
 
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	character:SetAttribute("BlockHealth", Config.Block.MaxHealth)
+	character:SetAttribute("DamageMult", (moveset and moveset.DamageMult) or 1)
 	Combat.RefreshMovement(character)
 
 	-- Character-specific spawn setup (e.g. Zoro's welded swords).
@@ -962,6 +1134,7 @@ Players.PlayerRemoving:Connect(function(player)
 	cooldowns[player] = nil
 	casting[player] = nil
 	dashReady[player] = nil
+	adminTry[player] = nil
 	for _, module in Characters do
 		if module.ForgetPlayer then
 			module.ForgetPlayer(player)
@@ -971,7 +1144,7 @@ Players.PlayerRemoving:Connect(function(player)
 		Combat.ForgetCharacter(player.Character)
 	end
 end)
-</ProtectedString></Properties><Item class="Folder" referent="RBX8"><Properties><string name="Name">Characters</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">Ace</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties><Item class="Folder" referent="RBX9"><Properties><string name="Name">Characters</string></Properties><Item class="ModuleScript" referent="RBX4"><Properties><string name="Name">Ace</string><ProtectedString name="Source">--[[
 	Ace.lua
 	Server-side implementation of Portgas D. Ace: a ranged fire zoner using
 	the Mera Mera no Mi. Most of his kit is projectiles (Combat.Projectile);
@@ -2348,7 +2521,462 @@ function Sanji.ForgetPlayer(player)
 end
 
 return Sanji
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">Zoro</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">Tung</string><ProtectedString name="Source">--[[
+	Tung.lua
+	ADMIN-ONLY OP character: Tung Tung Tung Sahur, the Brainrot King.
+	Wields a bat. 2x health and 1.5x damage are applied on spawn from
+	Config.Movesets.Tung.HealthMult / DamageMult.
+
+	Base moveset (slots 1-4): bat attacks (still balanced, just harder-hitting).
+	Ult (G): "THE KING" - plays a crown cutscene ("The king has arrived") and
+	makes every ult-slot attack a one-hit kill.
+
+	Interface matches the other characters.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Remotes = require(Shared.Remotes)
+
+local Combat = require(script.Parent.Parent.CombatService)
+
+local VFX = Remotes.get("VFX")
+local HUDUpdate = Remotes.get("HUDUpdate")
+
+local Tung = {}
+
+local MY = Config.Movesets.Tung
+
+local m1State = {}
+local kingTokens = {}
+
+-- ========================================================================
+-- Helpers
+-- ========================================================================
+
+local function faceTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
+	end
+end
+
+local function dashToTarget(character, targetCharacter)
+	local root = Combat.Root(character)
+	local targetRoot = Combat.Root(targetCharacter)
+	if root and targetRoot then
+		root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3.5)
+		root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
+	end
+end
+
+local function isKing(character)
+	return character:GetAttribute("KingMode") == true
+end
+
+local function targetsAround(character, radius)
+	local root = Combat.Root(character)
+	if not root then
+		return {}
+	end
+	return Combat.GetTargetsInBox(root.CFrame, Vector3.new(radius * 2, 14, radius * 2), character)
+end
+
+-- ========================================================================
+-- Procedural bat (welded on spawn)
+-- ========================================================================
+
+local function makePart(name, size, color, material)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.Wood
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.Parent = nil
+	return p
+end
+
+function Tung.Setup(_player, character)
+	local hand = character:WaitForChild("RightHand", 5) or character:FindFirstChild("Right Arm")
+	if not hand or not character.Parent then
+		return
+	end
+	local existing = character:FindFirstChild("BrainrotBat")
+	if existing then
+		existing:Destroy()
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "BrainrotBat"
+	folder.Parent = character
+
+	local grip = CFrame.new(0, 0, -0.6) * CFrame.Angles(math.rad(-95), 0, 0)
+	local pieces = {
+		{ part = makePart("Handle", Vector3.new(0.5, 1.8, 0.5), Color3.fromRGB(90, 62, 38)), offset = CFrame.new(0, 0, 0) },
+		{ part = makePart("Barrel", Vector3.new(1.1, 4.2, 1.1), Color3.fromRGB(120, 84, 50)), offset = CFrame.new(0, 3, 0) },
+	}
+	for _, entry in pieces do
+		local part = entry.part
+		part.Parent = folder
+		local weld = Instance.new("Weld")
+		weld.Part0 = hand
+		weld.Part1 = part
+		weld.C0 = grip * entry.offset
+		weld.Parent = part
+	end
+end
+
+-- ========================================================================
+-- M1 combo (bat swings)
+-- ========================================================================
+
+function Tung.M1(player, character)
+	if not Combat.IsActionable(character) then
+		return
+	end
+
+	local cfg = Config.M1
+	local now = os.clock()
+	local state = m1State[player]
+	if not state then
+		state = { count = 0, lastSwing = 0, lockedUntil = 0 }
+		m1State[player] = state
+	end
+
+	if now &lt; state.lockedUntil then
+		return
+	end
+	if now - state.lastSwing &lt; cfg.SwingCooldown then
+		return
+	end
+	if now - state.lastSwing &gt; cfg.ComboResetTime then
+		state.count = 0
+	end
+
+	state.count += 1
+	state.lastSwing = now
+	local isFinisher = state.count &gt;= cfg.ComboHits
+	if isFinisher then
+		state.count = 0
+		state.lockedUntil = now + cfg.ChainCooldown
+	end
+
+	local look = Combat.FlatLook(character)
+	VFX:FireAllClients("TungM1", { Character = character, Index = isFinisher and cfg.ComboHits or state.count })
+
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+		if isFinisher then
+			Combat.DealDamage(player, target, cfg.Damage, {
+				KnockbackDir = look,
+				KnockbackPower = cfg.FinisherKnockback,
+				RagdollTime = cfg.FinisherRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.Damage, { StunTime = cfg.HitStun })
+		end
+	end
+end
+
+-- ========================================================================
+-- Shared move shapes
+-- ========================================================================
+
+local function forwardSmash(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + 0.35, true)
+	VFX:FireAllClients(effectName, { Character = character, WindUp = cfg.WindUp, Range = cfg.Range })
+	task.wait(cfg.WindUp)
+	if not Combat.IsAlive(character) then
+		return
+	end
+	local look = Combat.FlatLook(character)
+	for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+		Combat.DealDamage(player, target, cfg.Damage, {
+			KnockbackDir = look,
+			KnockbackPower = cfg.Knockback,
+			KnockbackUp = cfg.Knockback * 0.3,
+			RagdollTime = cfg.RagdollTime,
+		})
+	end
+end
+
+local function forwardBarrage(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Duration + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, Duration = cfg.Duration, Range = cfg.Range })
+	task.wait(cfg.WindUp)
+	local interval = cfg.Duration / cfg.Hits
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local isLast = hit == cfg.Hits
+		local look = Combat.FlatLook(character)
+		for _, target in Combat.FrontHitbox(character, cfg.Range, cfg.Width) do
+			if isLast then
+				Combat.DealDamage(player, target, cfg.DamagePerHit, {
+					KnockbackDir = look,
+					KnockbackPower = cfg.FinalKnockback,
+					RagdollTime = cfg.FinalRagdoll,
+				})
+			else
+				Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = interval * 2, SilentVFX = hit % 2 == 0 })
+			end
+		end
+		if not isLast then
+			task.wait(interval)
+		end
+	end
+end
+
+local function spinAoE(player, character, cfg, effectName)
+	Combat.SetBusy(character, cfg.WindUp + cfg.Hits * cfg.HitInterval + 0.2, true)
+	VFX:FireAllClients(effectName, { Character = character, Radius = cfg.Radius, Hits = cfg.Hits })
+	task.wait(cfg.WindUp)
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or character:GetAttribute("Stunned") then
+			break
+		end
+		local root = Combat.Root(character)
+		local isLast = hit == cfg.Hits
+		for _, target in targetsAround(character, cfg.Radius) do
+			local opts = { StunTime = cfg.HitInterval * 2.5 }
+			if isLast then
+				opts.RagdollTime = cfg.RagdollTime
+				local targetRoot = Combat.Root(target)
+				local dir = root and targetRoot and (targetRoot.Position - root.Position) or Vector3.zAxis
+				opts.KnockbackDir = dir
+				opts.KnockbackPower = cfg.Knockback
+				opts.KnockbackUp = cfg.Knockback * 0.4
+			end
+			Combat.DealDamage(player, target, cfg.DamagePerHit, opts)
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+local function dashCombo(player, character, cfg, effectName)
+	local target = Combat.NearestTarget(character, cfg.DashRange)
+	if not target then
+		Combat.SetBusy(character, 0.4)
+		VFX:FireAllClients(effectName, { Character = character, Whiff = true })
+		task.wait(0.22)
+		local look = Combat.FlatLook(character)
+		for _, hit in Combat.FrontHitbox(character, cfg.Range, 6) do
+			Combat.DealDamage(player, hit, cfg.DamagePerHit * 2, { KnockbackDir = look, KnockbackPower = 40, StunTime = 0.6 })
+		end
+		return
+	end
+	local totalTime = cfg.Hits * cfg.HitInterval + 0.3
+	Combat.SetBusy(character, totalTime, true)
+	dashToTarget(character, target)
+	VFX:FireAllClients(effectName, { Character = character, Target = target, Duration = totalTime })
+	for hit = 1, cfg.Hits do
+		if not Combat.IsAlive(character) or not Combat.IsAlive(target) then
+			return
+		end
+		faceTarget(character, target)
+		local isLast = hit == cfg.Hits
+		if isLast then
+			Combat.DealDamage(player, target, cfg.DamagePerHit, {
+				KnockbackDir = Combat.FlatLook(character),
+				KnockbackPower = cfg.FinalKnockback,
+				RagdollTime = cfg.FinalRagdoll,
+			})
+		else
+			Combat.DealDamage(player, target, cfg.DamagePerHit, { StunTime = cfg.HitInterval * 2 })
+		end
+		if not isLast then
+			task.wait(cfg.HitInterval)
+		end
+	end
+end
+
+-- ========================================================================
+-- Movesets
+-- ========================================================================
+
+local function sahurSmash(player, character)
+	forwardSmash(player, character, MY.Base[1], "SahurSmash")
+end
+local function tungBarrage(player, character)
+	forwardBarrage(player, character, MY.Base[2], "TungBarrage")
+end
+local function brainrotSpin(player, character)
+	spinAoE(player, character, MY.Base[3], "BrainrotSpin")
+end
+local function batCombo(player, character)
+	dashCombo(player, character, MY.Base[4], "BatCombo")
+end
+
+local function royalDecree(player, character)
+	forwardSmash(player, character, MY.Ult[1], "RoyalDecree")
+end
+local function kingsJudgement(player, character)
+	spinAoE(player, character, MY.Ult[2], "KingsJudgement")
+end
+local function sahurRush(player, character)
+	dashCombo(player, character, MY.Ult[3], "SahurRush")
+end
+local function crownCrush(player, character)
+	forwardSmash(player, character, MY.Ult[4], "CrownCrush")
+end
+
+-- ========================================================================
+-- Ult: THE KING
+-- ========================================================================
+
+function Tung.ActivateUlt(player, character)
+	if not Combat.IsActionable(character) then
+		return false
+	end
+	if isKing(character) then
+		return false
+	end
+	local charge = player:GetAttribute("UltCharge") or 0
+	if charge &lt; Config.Ult.MaxCharge then
+		return false
+	end
+
+	player:SetAttribute("UltCharge", 0)
+	character:SetAttribute("KingMode", true)
+
+	local token = (kingTokens[player] or 0) + 1
+	kingTokens[player] = token
+
+	local humanoid = Combat.Humanoid(character)
+	if humanoid then
+		humanoid.Health = humanoid.MaxHealth -- full heal on the King's arrival
+	end
+
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed + Config.Ult.WalkSpeedBonus)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower + Config.Ult.JumpPowerBonus)
+	Combat.RefreshMovement(character)
+
+	-- Golden royal aura.
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "KingHighlight"
+	highlight.FillColor = Color3.fromRGB(120, 90, 20)
+	highlight.OutlineColor = Color3.fromRGB(255, 210, 90)
+	highlight.FillTransparency = 0.3
+	highlight.OutlineTransparency = 0
+	highlight.Parent = character
+
+	-- The crown, welded to the head (replicated to everyone).
+	local head = character:FindFirstChild("Head")
+	if head then
+		local crown = Instance.new("Folder")
+		crown.Name = "KingCrown"
+		local band = Instance.new("Part")
+		band.Name = "Band"
+		band.Shape = Enum.PartType.Cylinder
+		band.Size = Vector3.new(0.6, 2.4, 2.4)
+		band.Color = Color3.fromRGB(240, 196, 70)
+		band.Material = Enum.Material.Metal
+		band.Massless = true
+		band.CanCollide = false
+		band.CanQuery = false
+		band.Parent = crown
+		local bandWeld = Instance.new("Weld")
+		bandWeld.Part0 = head
+		bandWeld.Part1 = band
+		bandWeld.C0 = CFrame.new(0, 1.4, 0) * CFrame.Angles(0, 0, math.rad(90))
+		bandWeld.Parent = band
+		for i = 0, 4 do
+			local angle = math.rad(i * 72)
+			local spike = Instance.new("Part")
+			spike.Name = "Spike"
+			spike.Size = Vector3.new(0.3, 1, 0.3)
+			spike.Color = Color3.fromRGB(255, 214, 90)
+			spike.Material = Enum.Material.Neon
+			spike.Massless = true
+			spike.CanCollide = false
+			spike.CanQuery = false
+			spike.Parent = crown
+			local weld = Instance.new("Weld")
+			weld.Part0 = head
+			weld.Part1 = spike
+			weld.C0 = CFrame.new(math.cos(angle) * 1, 2.1, math.sin(angle) * 1)
+			weld.Parent = spike
+		end
+		crown.Parent = character
+	end
+
+	-- The cutscene + HUD state for everyone.
+	VFX:FireAllClients("KingCrown", { Character = character })
+	HUDUpdate:FireClient(player, "UltState", true, Config.Ult.Duration)
+
+	task.delay(Config.Ult.Duration, function()
+		if kingTokens[player] == token then
+			Tung.DeactivateUlt(player, character)
+		end
+	end)
+
+	return true
+end
+
+function Tung.DeactivateUlt(player, character)
+	if not character or not character.Parent or not isKing(character) then
+		return
+	end
+	character:SetAttribute("KingMode", false)
+	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
+	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
+	Combat.RefreshMovement(character)
+
+	local highlight = character:FindFirstChild("KingHighlight")
+	if highlight then
+		highlight:Destroy()
+	end
+	local crown = character:FindFirstChild("KingCrown")
+	if crown then
+		crown:Destroy()
+	end
+
+	VFX:FireAllClients("KingCrownEnd", { Character = character })
+	if player.Parent then
+		HUDUpdate:FireClient(player, "UltState", false)
+	end
+end
+
+-- ========================================================================
+-- Skill dispatch
+-- ========================================================================
+
+local BASE_MOVES = { sahurSmash, tungBarrage, brainrotSpin, batCombo }
+local KING_MOVES = { royalDecree, kingsJudgement, sahurRush, crownCrush }
+
+function Tung.UseSkill(player, character, slot)
+	if not Combat.IsActionable(character) then
+		return nil
+	end
+	local king = isKing(character)
+	local moveset = king and KING_MOVES or BASE_MOVES
+	local cfg = king and MY.Ult[slot] or MY.Base[slot]
+	local move = moveset[slot]
+	if not move or not cfg then
+		return nil
+	end
+	if move(player, character) == false then
+		return nil
+	end
+	return cfg.Cooldown
+end
+
+function Tung.ForgetPlayer(player)
+	m1State[player] = nil
+	kingTokens[player] = nil
+end
+
+return Tung
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">Zoro</string><ProtectedString name="Source">--[[
 	Zoro.lua
 	Server-side implementation of Roronoa Zoro's kit: a fast melee rushdown
 	fighter using Santoryu (Three-Sword Style). Procedural katanas are welded
@@ -2840,7 +3468,7 @@ function Zoro.ForgetPlayer(player)
 end
 
 return Zoro
-</ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">CombatService</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">CombatService</string><ProtectedString name="Source">--[[
 	CombatService.lua
 	Server-authoritative combat primitives shared by every character:
 	hitboxes, damage, ult charge, stun / ragdoll / paralysis, knockback.
@@ -3207,6 +3835,11 @@ function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 		return false
 	end
 
+	-- Per-attacker damage multiplier (e.g. OP characters hit harder).
+	if attackerPlayer and attackerPlayer.Character then
+		amount = amount * (attackerPlayer.Character:GetAttribute("DamageMult") or 1)
+	end
+
 	if not opts.Unblockable and tryBlock(attackerPlayer, victimCharacter, amount) then
 		return false
 	end
@@ -3415,7 +4048,7 @@ function Combat.ForgetCharacter(character)
 end
 
 return Combat
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--[[
 	MapBuilder.lua
 	Generates the whole arena in code at server startup (the Rojo project
 	ships no place geometry).
@@ -4509,7 +5142,7 @@ function MapBuilder.Build()
 end
 
 return MapBuilder
-</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX20"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX19"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX15"><Properties><string name="Name">Client</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX22"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX21"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX17"><Properties><string name="Name">Client</string><ProtectedString name="Source">--[[
 	init.client.lua
 	Client entry point: input handling + HUD/VFX bootstrapping.
 
@@ -4531,6 +5164,7 @@ local Remotes = require(Shared.Remotes)
 local HUD = require(script.HUD)
 local VFXClient = require(script.VFXClient)
 local CharacterSelect = require(script.CharacterSelect)
+local AdminPanel = require(script.AdminPanel)
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -4544,6 +5178,7 @@ local HUDUpdate = Remotes.get("HUDUpdate")
 HUD.Init()
 VFXClient.Init()
 CharacterSelect.Init()
+AdminPanel.Init()
 
 local SKILL_KEYS = {
 	[Enum.KeyCode.One] = 1,
@@ -4621,7 +5256,169 @@ HUDUpdate.OnClientEvent:Connect(function(kind, ...)
 		HUD.SetDashCooldown(...)
 	end
 end)
-</ProtectedString></Properties><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">CharacterSelect</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source">--[[
+	AdminPanel.lua
+	A hidden admin panel. Press  \  (backslash) to toggle it, type the code
+	and submit. The code is validated on the server (AdminAuth); on success
+	the server grants the Admin attribute, which unlocks the admin-only
+	character in the select menu.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Remotes)
+
+local LocalPlayer = Players.LocalPlayer
+local AdminAuth = Remotes.get("AdminAuth")
+
+local BG = Color3.fromRGB(20, 20, 26)
+local GOLD = Color3.fromRGB(230, 190, 80)
+
+local AdminPanel = {}
+
+local backdrop, statusLabel, codeBox
+
+local function corner(instance, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = instance
+end
+
+local function setOpen(open)
+	backdrop.Visible = open
+	if open then
+		codeBox.Text = ""
+		statusLabel.Text = "Enter the access code."
+		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+		codeBox:CaptureFocus()
+	end
+end
+
+function AdminPanel.Init()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AdminPanelGui"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 40
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	backdrop = Instance.new("TextButton")
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.5
+	backdrop.Text = ""
+	backdrop.AutoButtonColor = false
+	backdrop.Visible = false
+	backdrop.Parent = gui
+
+	local panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromOffset(360, 220)
+	panel.BackgroundColor3 = BG
+	panel.Parent = backdrop
+	corner(panel, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = GOLD
+	stroke.Thickness = 2
+	stroke.Transparency = 0.3
+	stroke.Parent = panel
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.fromOffset(20, 16)
+	title.Size = UDim2.new(1, -40, 0, 28)
+	title.Font = Enum.Font.GothamBlack
+	title.TextSize = 20
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = GOLD
+	title.Text = "ADMIN PANEL"
+	title.Parent = panel
+
+	statusLabel = Instance.new("TextLabel")
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Position = UDim2.fromOffset(20, 50)
+	statusLabel.Size = UDim2.new(1, -40, 0, 20)
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 13
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+	statusLabel.Text = "Enter the access code."
+	statusLabel.Parent = panel
+
+	codeBox = Instance.new("TextBox")
+	codeBox.Position = UDim2.fromOffset(20, 82)
+	codeBox.Size = UDim2.new(1, -40, 0, 44)
+	codeBox.Font = Enum.Font.Gotham
+	codeBox.TextSize = 16
+	codeBox.TextColor3 = Color3.new(1, 1, 1)
+	codeBox.PlaceholderText = "Access code"
+	codeBox.Text = ""
+	codeBox.ClearTextOnFocus = false
+	codeBox.BackgroundColor3 = Color3.fromRGB(34, 34, 42)
+	codeBox.Parent = panel
+	corner(codeBox, 8)
+
+	local submit = Instance.new("TextButton")
+	submit.AnchorPoint = Vector2.new(0.5, 1)
+	submit.Position = UDim2.new(0.5, 0, 1, -16)
+	submit.Size = UDim2.new(1, -40, 0, 42)
+	submit.Font = Enum.Font.GothamBold
+	submit.TextSize = 15
+	submit.TextColor3 = Color3.fromRGB(20, 20, 20)
+	submit.BackgroundColor3 = GOLD
+	submit.Text = "AUTHENTICATE"
+	submit.Parent = panel
+	corner(submit, 8)
+
+	local function trySubmit()
+		if codeBox.Text ~= "" then
+			statusLabel.Text = "Checking..."
+			statusLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+			AdminAuth:FireServer(codeBox.Text)
+		end
+	end
+	submit.Activated:Connect(trySubmit)
+	codeBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			trySubmit()
+		end
+	end)
+
+	AdminAuth.OnClientEvent:Connect(function(granted)
+		if granted then
+			statusLabel.Text = "ACCESS GRANTED - the King is unlocked."
+			statusLabel.TextColor3 = Color3.fromRGB(120, 230, 120)
+			task.delay(1.2, function()
+				setOpen(false)
+			end)
+		else
+			statusLabel.Text = "ACCESS DENIED."
+			statusLabel.TextColor3 = Color3.fromRGB(235, 90, 90)
+			codeBox.Text = ""
+		end
+	end)
+
+	backdrop.Activated:Connect(function()
+		setOpen(false)
+	end)
+
+	-- Toggle with the backslash key.
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Backslash then
+			setOpen(not backdrop.Visible)
+		end
+	end)
+end
+
+return AdminPanel
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">CharacterSelect</string><ProtectedString name="Source">--[[
 	CharacterSelect.lua
 	A topbar button (sitting beside the core chat button) that opens a
 	character-select menu built from Config.Roster. Selecting an unlocked
@@ -4649,7 +5446,7 @@ local LOCKED = Color3.fromRGB(90, 90, 100)
 local CharacterSelect = {}
 
 local cards = {} -- [id] = { select button, stroke, statusLabel }
-local panel, backdrop, topButton
+local panel, backdrop, topButton, scroller
 
 local function corner(instance, radius)
 	local c = Instance.new("UICorner")
@@ -4939,7 +5736,7 @@ function CharacterSelect.Init()
 	corner(closeButton, 7)
 
 	-- Scrolling row of cards.
-	local scroller = Instance.new("ScrollingFrame")
+	scroller = Instance.new("ScrollingFrame")
 	scroller.Position = UDim2.new(0, 0, 0, 42)
 	scroller.Size = UDim2.new(1, 0, 1, -42)
 	scroller.BackgroundTransparency = 1
@@ -4956,9 +5753,7 @@ function CharacterSelect.Init()
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = scroller
 
-	for order, entry in Config.Roster do
-		buildCard(entry, scroller, order)
-	end
+	CharacterSelect.RebuildCards()
 
 	-- Wiring.
 	topButton.Activated:Connect(function()
@@ -4971,12 +5766,38 @@ function CharacterSelect.Init()
 		setOpen(false)
 	end)
 	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
+	-- Reveal the admin character the moment access is granted.
+	LocalPlayer:GetAttributeChangedSignal("Admin"):Connect(CharacterSelect.RebuildCards)
 
 	refreshStates()
 end
 
+-- Builds the card row, skipping admin-only characters unless the local
+-- player has been granted admin access.
+function CharacterSelect.RebuildCards()
+	if not scroller then
+		return
+	end
+	for _, child in scroller:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	table.clear(cards)
+
+	local isAdmin = LocalPlayer:GetAttribute("Admin") == true
+	local order = 0
+	for _, entry in Config.Roster do
+		if not entry.Admin or isAdmin then
+			order += 1
+			buildCard(entry, scroller, order)
+		end
+	end
+	refreshStates()
+end
+
 return CharacterSelect
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">HUD</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">HUD</string><ProtectedString name="Source">--[[
 	HUD.lua
 	Builds the combat HUD entirely in code:
 	  - 4 skill slots (keys 1-4) with name, keybind and cooldown sweep
@@ -5341,7 +6162,7 @@ function HUD.SetUltState(active, duration)
 end
 
 return HUD
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">VFXClient</string><ProtectedString name="Source">--[[
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">VFXClient</string><ProtectedString name="Source">--[[
 	VFXClient.lua
 	High-end procedural combat visuals + procedural character animation.
 
@@ -7302,6 +8123,250 @@ function Effects.GreatFlameEnd(data)
 	local r = root(data.Character)
 	if r then
 		shockwave(r.Position, 22, FIRE_ORANGE, 0.5, 1)
+	end
+end
+
+-- ========================================================================
+-- Tung Tung Tung Sahur effect handlers (bat + royal one-hit-kill ult)
+-- ========================================================================
+
+local WOOD = Color3.fromRGB(150, 108, 62)
+local ROYAL_GOLD = Color3.fromRGB(255, 210, 90)
+
+function Effects.TungM1(data)
+	local side = data.Index % 2 == 0 and "Left" or "Right"
+	punchArm(data.Character, side, 0.06, 0.05, 1)
+	slash(data.Character, side == "Right" and -30 or 30, 6, WOOD, 5, 0.16)
+end
+
+local function batSmash(character, color, big)
+	local r = root(character)
+	if not r then
+		return
+	end
+	pushBothArms(character, 0.08, 0.14)
+	slash(character, 6, big and 13 or 10, color, 5, 0.22)
+	local hit = r.Position + r.CFrame.LookVector * 6
+	impact(hit, { Color = color, Scale = big and 1.8 or 1.3, Heavy = true, CrackColor = Color3.fromRGB(60, 45, 30) })
+end
+
+function Effects.SahurSmash(data)
+	local cfg = Config.Movesets.Tung.Base[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, WOOD, false)
+	end)
+end
+
+function Effects.TungBarrage(data)
+	local character = data.Character
+	speedLines(character, data.Duration or 1.2, WOOD)
+	task.spawn(function()
+		local elapsed = 0
+		local side = "Right"
+		while elapsed &lt; (data.Duration or 1.2) do
+			punchArm(character, side, 0.05, 0.02, 0.95)
+			slash(character, side == "Right" and -26 or 26, 7, WOOD, 5, 0.12)
+			side = side == "Right" and "Left" or "Right"
+			elapsed += task.wait(0.1)
+		end
+	end)
+end
+
+function Effects.BrainrotSpin(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Tung.Base[3]
+	task.delay(cfg.WindUp, function()
+		for hit = 1, cfg.Hits do
+			for a = 0, 270, 90 do
+				arcSlash(character, a + hit * 50, cfg.Radius, WOOD)
+			end
+			local r = root(character)
+			if r then
+				shake(r.Position, 0.3, 0.15)
+			end
+			task.wait(cfg.HitInterval)
+		end
+	end)
+end
+
+function Effects.BatCombo(data)
+	local character = data.Character
+	if data.Whiff then
+		punchArm(character, "Right", 0.08, 0.05, 1)
+		slash(character, 28, 6, WOOD, 5, 0.15)
+		return
+	end
+	afterImage(character, WOOD, 0.4)
+	task.spawn(function()
+		for i = 1, 5 do
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			slash(character, i % 2 == 0 and 26 or -26, 6, WOOD, 4.5, 0.13)
+			task.wait(0.09)
+		end
+	end)
+end
+
+-- Royal ult moves: gilded, extra dramatic.
+local function royalHit(character, offset, scale)
+	local r = root(character)
+	if not r then
+		return
+	end
+	local hit = r.Position + r.CFrame.LookVector * (offset or 6)
+	flameArc(character, -14, 12, 6) -- gold streak reuse (fire arc tinted below)
+	impact(hit, { Color = ROYAL_GOLD, Scale = scale or 2, Heavy = true, CrackColor = Color3.fromRGB(90, 70, 20) })
+	shockwave(hit, 40, ROYAL_GOLD, 0.5, 1.2)
+	screenFlash(ROYAL_GOLD, 0.2, 0.2)
+end
+
+function Effects.RoyalDecree(data)
+	local cfg = Config.Movesets.Tung.Ult[1]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, ROYAL_GOLD, true)
+		royalHit(data.Character, 8, 2.2)
+	end)
+end
+
+function Effects.KingsJudgement(data)
+	local character = data.Character
+	local cfg = Config.Movesets.Tung.Ult[2]
+	task.delay(cfg.WindUp, function()
+		for a = 0, 315, 45 do
+			arcSlash(character, a, cfg.Radius, ROYAL_GOLD)
+		end
+		local r = root(character)
+		if r then
+			groundDisc(r.Position, cfg.Radius * 2, ROYAL_GOLD, 0.6)
+			impact(r.Position, { Color = ROYAL_GOLD, Scale = 2.6, Heavy = true })
+			screenFlash(ROYAL_GOLD, 0.25, 0.25)
+			shake(r.Position, 1, 0.4)
+		end
+	end)
+end
+
+function Effects.SahurRush(data)
+	local character = data.Character
+	if data.Whiff then
+		slash(character, 28, 7, ROYAL_GOLD, 5, 0.16)
+		return
+	end
+	afterImage(character, ROYAL_GOLD, 0.5)
+	task.spawn(function()
+		for i = 1, 3 do
+			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 1.05)
+			slash(character, i % 2 == 0 and 30 or -30, 8, ROYAL_GOLD, 5, 0.14)
+			task.wait(0.1)
+		end
+		royalHit(character, 5, 1.8)
+	end)
+end
+
+function Effects.CrownCrush(data)
+	local cfg = Config.Movesets.Tung.Ult[4]
+	task.delay(cfg.WindUp - 0.05, function()
+		batSmash(data.Character, ROYAL_GOLD, true)
+		royalHit(data.Character, 8, 2.6)
+		local r = root(data.Character)
+		if r then
+			fovPunch(r.Position, 10, 0.4)
+		end
+	end)
+end
+
+-- The King's arrival cutscene: crown drops onto the head + banner for all.
+function Effects.KingCrown(data)
+	local character = data.Character
+	local r = root(character)
+	local head = character:FindFirstChild("Head")
+	local landPos = head and head.Position or (r and r.Position + Vector3.new(0, 2, 0))
+	if landPos then
+		-- A big golden crown falls from the sky with a light beam.
+		local crown = makePart({
+			Size = Vector3.new(5, 3, 5),
+			CFrame = CFrame.new(landPos + Vector3.new(0, 60, 0)),
+			Color = ROYAL_GOLD,
+			Material = Enum.Material.Neon,
+			Transparency = 0.05,
+		})
+		addTrail(crown, ROYAL_GOLD, 0.5, 3)
+		local beam = makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(120, 8, 8),
+			CFrame = CFrame.new(landPos + Vector3.new(0, 60, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = ROYAL_GOLD,
+			Transparency = 0.6,
+		})
+		Debris:AddItem(beam, 1.2)
+		tween(crown, 0.7, { CFrame = CFrame.new(landPos + Vector3.new(0, 2.6, 0)) }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		task.delay(0.7, function()
+			shockwave(landPos, 40, ROYAL_GOLD, 0.6, 1.4)
+			sparks(landPos, ROYAL_GOLD, 60, 45, 2.4)
+			if r then
+				shake(r.Position, 1.4, 0.5)
+			end
+			tween(crown, 0.25, { Transparency = 1 })
+		end)
+		Debris:AddItem(crown, 1.2)
+	end
+
+	-- Full-screen "THE KING HAS ARRIVED" banner for everyone.
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "KingCutscene"
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 60
+	gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+	local dim = Instance.new("Frame")
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.new(0, 0, 0)
+	dim.BackgroundTransparency = 0.4
+	dim.Parent = gui
+
+	local banner = Instance.new("TextLabel")
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.5)
+	banner.Size = UDim2.fromScale(0.9, 0.2)
+	banner.BackgroundTransparency = 1
+	banner.Font = Enum.Font.GothamBlack
+	banner.TextScaled = true
+	banner.TextColor3 = ROYAL_GOLD
+	banner.TextStrokeColor3 = Color3.fromRGB(60, 40, 0)
+	banner.TextStrokeTransparency = 0
+	banner.TextTransparency = 1
+	banner.Text = "THE KING HAS ARRIVED"
+	banner.Parent = gui
+
+	local subtitle = Instance.new("TextLabel")
+	subtitle.AnchorPoint = Vector2.new(0.5, 0)
+	subtitle.Position = UDim2.fromScale(0.5, 0.62)
+	subtitle.Size = UDim2.fromScale(0.6, 0.05)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextScaled = true
+	subtitle.TextColor3 = Color3.fromRGB(240, 230, 200)
+	subtitle.TextTransparency = 1
+	subtitle.Text = data.Character and data.Character.Name or "Tung Tung Tung Sahur"
+	subtitle.Parent = gui
+
+	tween(dim, 0.3, { BackgroundTransparency = 0.55 })
+	tween(banner, 0.4, { TextTransparency = 0 })
+	tween(subtitle, 0.6, { TextTransparency = 0 })
+	screenFlash(ROYAL_GOLD, 0.5, 0.6)
+
+	task.delay(2.2, function()
+		tween(banner, 0.5, { TextTransparency = 1 })
+		tween(subtitle, 0.5, { TextTransparency = 1 })
+		tween(dim, 0.5, { BackgroundTransparency = 1 })
+		task.delay(0.6, function()
+			gui:Destroy()
+		end)
+	end)
+end
+
+function Effects.KingCrownEnd(data)
+	local r = root(data.Character)
+	if r then
+		shockwave(r.Position, 20, ROYAL_GOLD, 0.5, 1)
 	end
 end
 

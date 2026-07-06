@@ -17,6 +17,7 @@ local Luffy = require(script.Characters.Luffy)
 local Zoro = require(script.Characters.Zoro)
 local Sanji = require(script.Characters.Sanji)
 local Ace = require(script.Characters.Ace)
+local Tung = require(script.Characters.Tung)
 
 local UseSkill = Remotes.get("UseSkill")
 local M1 = Remotes.get("M1")
@@ -24,8 +25,13 @@ local ActivateUlt = Remotes.get("ActivateUlt")
 local Dash = Remotes.get("Dash")
 local Block = Remotes.get("Block")
 local SelectCharacter = Remotes.get("SelectCharacter")
+local AdminAuth = Remotes.get("AdminAuth")
 local VFX = Remotes.get("VFX")
 local HUDUpdate = Remotes.get("HUDUpdate")
+
+-- The admin code lives ONLY on the server (ServerScriptService is never
+-- replicated to clients), so it never ships in client-readable code.
+local ADMIN_CODE = "GomesFamily"
 
 MapBuilder.Build()
 
@@ -40,14 +46,21 @@ local Characters = {
 	Zoro = Zoro,
 	Sanji = Sanji,
 	Ace = Ace,
+	Tung = Tung,
 }
 local DEFAULT_CHARACTER = "Luffy"
 
--- Which roster ids are actually selectable (unlocked + have a module).
+-- Which roster ids are selectable by anyone (unlocked + have a module), and
+-- which are admin-only (require the Admin attribute, granted by the code).
 local unlockedIds = {}
+local adminIds = {}
 for _, entry in Config.Roster do
-	if not entry.Locked and Characters[entry.Id] then
-		unlockedIds[entry.Id] = true
+	if Characters[entry.Id] then
+		if entry.Admin then
+			adminIds[entry.Id] = true
+		elseif not entry.Locked then
+			unlockedIds[entry.Id] = true
+		end
 	end
 end
 
@@ -194,8 +207,18 @@ end)
 -- Character selection
 -- ========================================================================
 
+local function canSelect(player, id)
+	if unlockedIds[id] then
+		return true
+	end
+	if adminIds[id] and player:GetAttribute("Admin") == true then
+		return true
+	end
+	return false
+end
+
 SelectCharacter.OnServerEvent:Connect(function(player, id)
-	if type(id) ~= "string" or not unlockedIds[id] then
+	if type(id) ~= "string" or not canSelect(player, id) then
 		return
 	end
 	if player:GetAttribute("SelectedCharacter") == id then
@@ -220,18 +243,46 @@ SelectCharacter.OnServerEvent:Connect(function(player, id)
 end)
 
 -- ========================================================================
+-- Admin authentication
+-- The code is validated here on the server; the client only ever sends a
+-- guess. A short per-player cooldown discourages brute-forcing.
+-- ========================================================================
+local adminTry = {}
+AdminAuth.OnServerEvent:Connect(function(player, code)
+	local now = os.clock()
+	if now < (adminTry[player] or 0) then
+		return
+	end
+	adminTry[player] = now + 1
+
+	if type(code) == "string" and code == ADMIN_CODE then
+		player:SetAttribute("Admin", true)
+		AdminAuth:FireClient(player, true)
+	else
+		AdminAuth:FireClient(player, false)
+	end
+end)
+
+-- ========================================================================
 -- Player / character lifecycle
 -- ========================================================================
 
 local function onCharacterAdded(player, character)
 	local humanoid = character:WaitForChild("Humanoid")
-	humanoid.MaxHealth = Config.Character.MaxHealth
-	humanoid.Health = Config.Character.MaxHealth
+
+	-- Per-character stat multipliers (OP characters can have more health /
+	-- harder hits). DamageMult is read by Combat.DealDamage.
+	local moveset = Config.Movesets[player:GetAttribute("SelectedCharacter") or DEFAULT_CHARACTER]
+	local healthMult = (moveset and moveset.HealthMult) or 1
+	local maxHealth = Config.Character.MaxHealth * healthMult
+	humanoid.MaxHealth = maxHealth
+	humanoid.Health = maxHealth
 	humanoid.BreakJointsOnDeath = false
 
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	character:SetAttribute("BlockHealth", Config.Block.MaxHealth)
+	character:SetAttribute("DamageMult", (moveset and moveset.DamageMult) or 1)
 	Combat.RefreshMovement(character)
 
 	-- Character-specific spawn setup (e.g. Zoro's welded swords).
@@ -290,6 +341,7 @@ Players.PlayerRemoving:Connect(function(player)
 	cooldowns[player] = nil
 	casting[player] = nil
 	dashReady[player] = nil
+	adminTry[player] = nil
 	for _, module in Characters do
 		if module.ForgetPlayer then
 			module.ForgetPlayer(player)

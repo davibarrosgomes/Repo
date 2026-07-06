@@ -365,6 +365,11 @@ function Combat.DealDamage(attackerPlayer, victimCharacter, amount, opts)
 		return false
 	end
 
+	-- Per-attacker damage multiplier (e.g. OP characters hit harder).
+	if attackerPlayer and attackerPlayer.Character then
+		amount = amount * (attackerPlayer.Character:GetAttribute("DamageMult") or 1)
+	end
+
 	if not opts.Unblockable and tryBlock(attackerPlayer, victimCharacter, amount) then
 		return false
 	end

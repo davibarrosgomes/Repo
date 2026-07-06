@@ -26,7 +26,7 @@ local LOCKED = Color3.fromRGB(90, 90, 100)
 local CharacterSelect = {}
 
 local cards = {} -- [id] = { select button, stroke, statusLabel }
-local panel, backdrop, topButton
+local panel, backdrop, topButton, scroller
 
 local function corner(instance, radius)
 	local c = Instance.new("UICorner")
@@ -316,7 +316,7 @@ function CharacterSelect.Init()
 	corner(closeButton, 7)
 
 	-- Scrolling row of cards.
-	local scroller = Instance.new("ScrollingFrame")
+	scroller = Instance.new("ScrollingFrame")
 	scroller.Position = UDim2.new(0, 0, 0, 42)
 	scroller.Size = UDim2.new(1, 0, 1, -42)
 	scroller.BackgroundTransparency = 1
@@ -333,9 +333,7 @@ function CharacterSelect.Init()
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = scroller
 
-	for order, entry in Config.Roster do
-		buildCard(entry, scroller, order)
-	end
+	CharacterSelect.RebuildCards()
 
 	-- Wiring.
 	topButton.Activated:Connect(function()
@@ -348,7 +346,33 @@ function CharacterSelect.Init()
 		setOpen(false)
 	end)
 	LocalPlayer:GetAttributeChangedSignal("SelectedCharacter"):Connect(refreshStates)
+	-- Reveal the admin character the moment access is granted.
+	LocalPlayer:GetAttributeChangedSignal("Admin"):Connect(CharacterSelect.RebuildCards)
 
+	refreshStates()
+end
+
+-- Builds the card row, skipping admin-only characters unless the local
+-- player has been granted admin access.
+function CharacterSelect.RebuildCards()
+	if not scroller then
+		return
+	end
+	for _, child in scroller:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	table.clear(cards)
+
+	local isAdmin = LocalPlayer:GetAttribute("Admin") == true
+	local order = 0
+	for _, entry in Config.Roster do
+		if not entry.Admin or isAdmin then
+			order += 1
+			buildCard(entry, scroller, order)
+		end
+	end
 	refreshStates()
 end
 

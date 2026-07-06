@@ -9,6 +9,7 @@
 	Dash             client -> server : ()
 	Block            client -> server : (enabled: boolean)
 	SelectCharacter  client -> server : (characterId: string)
+	AdminAuth        client -> server : (code: string) ; server -> client : (granted: boolean)
 	VFX          server -> client : (effectName: string, data: table)
 	HUDUpdate    server -> client : (kind: string, ...)
 ]]
@@ -16,7 +17,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "VFX", "HUDUpdate" }
+local NAMES = { "UseSkill", "M1", "ActivateUlt", "Dash", "Block", "SelectCharacter", "AdminAuth", "VFX", "HUDUpdate" }
 
 local Remotes = {}
 
