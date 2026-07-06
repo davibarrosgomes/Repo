@@ -7224,47 +7224,180 @@ end
 -- Sword primitives (Zoro)
 -- ========================================================================
 
--- A bright blade streak in front of the character. `angleDeg` is the roll of
--- the slash; it sweeps ~45 degrees and fades. Returns the world hit point.
+-- The core of a REAL slash: a thin part with a Trail is swept along a
+-- circular arc, so the Trail paints a curved crescent (not a straight line).
+-- The part rotates about `rotAxis`; the trail's two attachments sit along
+-- `radialAxis` at inner/outer radius, so the ribbon spans the blade length.
+local function arcSweep(character, o)
+	local r = root(character)
+	if not r then
+		return nil
+	end
+	local pivot = r.CFrame * (o.pivot or CFrame.new(0, 1.4, -1.5))
+	local inner = o.inner or 0.6
+	local outer = o.outer or 6
+	local fromA = math.rad(o.from or 70)
+	local toA = math.rad(o.to or -70)
+	local dur = o.duration or 0.16
+	local color = o.color or Color3.new(1, 1, 1)
+	local rotAxis = (o.rotAxis or Vector3.new(0, 0, 1))
+	local radialAxis = (o.radialAxis or Vector3.new(0, 1, 0))
+
+	local mover = makePart({
+		Size = Vector3.new(0.15, 0.15, 0.15),
+		Transparency = 1,
+		CFrame = pivot * CFrame.fromAxisAngle(rotAxis, fromA),
+	})
+	local a0 = attachment(mover, radialAxis * inner)
+	local a1 = attachment(mover, radialAxis * outer)
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.05),
+		NumberSequenceKeypoint.new(0.7, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.WidthScale = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0.15),
+	})
+	trail.Lifetime = math.max(0.12, dur * 1.1)
+	trail.LightEmission = 1
+	trail.FaceCamera = false
+	trail.MaxLength = 0
+	trail.Parent = mover
+
+	task.spawn(function()
+		local t = 0
+		while t &lt; dur and mover.Parent do
+			local dt = RunService.RenderStepped:Wait()
+			t += dt
+			local frac = math.min(1, t / dur)
+			-- ease-out so the blade whips fast then slows (anime timing)
+			local eased = 1 - (1 - frac) * (1 - frac)
+			local ang = fromA + (toA - fromA) * eased
+			mover.CFrame = pivot * CFrame.fromAxisAngle(rotAxis, ang)
+		end
+		trail.Enabled = false
+	end)
+	Debris:AddItem(mover, dur + trail.Lifetime + 0.1)
+	return (pivot * CFrame.new(radialAxis * outer)).Position
+end
+
+-- A forward slash arc. `angleDeg` orients the cut (0 = horizontal-ish, 90 =
+-- vertical); it sweeps a curved crescent in the plane facing forward.
 local function slash(character, angleDeg, length, color, forward, life)
 	local r = root(character)
 	if not r then
 		return nil
 	end
 	forward = forward or 5
-	local base = r.CFrame * CFrame.new(0, 1.2, -forward)
-	local blade = makePart({
-		Size = Vector3.new(0.22, length, 1.1),
-		CFrame = base * CFrame.Angles(0, 0, math.rad(angleDeg)),
-		Color = color,
-		Material = Enum.Material.Neon,
-		Transparency = 0.05,
+	angleDeg = angleDeg or 0
+	arcSweep(character, {
+		pivot = CFrame.new(0, 1.4, -forward * 0.45),
+		from = angleDeg + 60,
+		to = angleDeg - 70,
+		inner = 0.7,
+		outer = length,
+		rotAxis = Vector3.new(0, 0, 1),
+		radialAxis = Vector3.new(0, 1, 0),
+		color = color,
+		duration = life or 0.16,
 	})
-	addTrail(blade, color, 0.14, length * 0.45)
-	tween(blade, life or 0.16, {
-		CFrame = base * CFrame.Angles(0, 0, math.rad(angleDeg + 46)),
-		Size = Vector3.new(0.22, length * 1.12, 1.1),
-		Transparency = 1,
-	}, Enum.EasingStyle.Quint)
-	Debris:AddItem(blade, (life or 0.16) + 0.05)
-	return base.Position
+	return (r.CFrame * CFrame.new(0, 1.4, -forward)).Position
 end
 
--- Horizontal arc slash sweeping around the character (spins).
+-- A horizontal curved sweep around the character (spins / round kicks).
 local function arcSlash(character, startAngle, radius, color)
-	local r = root(character)
-	if not r then
+	arcSweep(character, {
+		pivot = CFrame.new(0, 1, 0),
+		from = startAngle - 55,
+		to = startAngle + 55,
+		inner = 1,
+		outer = radius,
+		rotAxis = Vector3.new(0, 1, 0),
+		radialAxis = Vector3.new(0, 0, -1),
+		color = color,
+		duration = 0.2,
+	})
+end
+
+-- Attach a temporary edge-trail to a real welded weapon part (sword blade,
+-- bat barrel) so the physical weapon streaks as it swings.
+local function weaponEdgeTrail(character, folderName, partName, color, dur)
+	local folder = character:FindFirstChild(folderName)
+	if not folder then
 		return
 	end
-	local arc = makePart({
-		Size = Vector3.new(radius * 2, 0.25, 1.4),
-		CFrame = r.CFrame * CFrame.new(0, 1, 0) * CFrame.Angles(0, math.rad(startAngle), 0) * CFrame.new(0, 0, -radius),
-		Color = color,
-		Material = Enum.Material.Neon,
-		Transparency = 0.15,
+	for _, part in folder:GetChildren() do
+		if part:IsA("BasePart") and part.Name == partName then
+			local a0 = attachment(part, Vector3.new(0, part.Size.Y / 2, 0))
+			local a1 = attachment(part, Vector3.new(0, -part.Size.Y / 2, 0))
+			local trail = Instance.new("Trail")
+			trail.Attachment0 = a0
+			trail.Attachment1 = a1
+			trail.Color = ColorSequence.new(color)
+			trail.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.1),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			trail.Lifetime = 0.22
+			trail.LightEmission = 0.9
+			trail.Parent = part
+			task.delay(dur or 0.3, function()
+				trail.Enabled = false
+				Debris:AddItem(trail, 0.4)
+				Debris:AddItem(a0, 0.4)
+				Debris:AddItem(a1, 0.4)
+			end)
+		end
+	end
+end
+
+-- Attach a temporary trail to a real limb (a foot, for kicks) so the kick
+-- follows the actual leg like Luffy's arm follows his hand.
+local function limbTrail(character, partNames, color, dur)
+	local part = getPart(character, partNames)
+	if not part then
+		return
+	end
+	local a0 = attachment(part, Vector3.new(0, part.Size.Y / 2, 0))
+	local a1 = attachment(part, Vector3.new(0, -part.Size.Y / 2, 0))
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
 	})
-	tween(arc, 0.2, { Transparency = 1, Size = Vector3.new(radius * 2.2, 0.25, 1.4) })
-	Debris:AddItem(arc, 0.25)
+	trail.Lifetime = 0.2
+	trail.LightEmission = 0.7
+	trail.Parent = part
+	task.delay(dur or 0.3, function()
+		trail.Enabled = false
+		Debris:AddItem(trail, 0.35)
+		Debris:AddItem(a0, 0.35)
+		Debris:AddItem(a1, 0.35)
+	end)
+end
+
+-- Convenience wrappers so each fighter's swing shows the real weapon/limb.
+local function swordSwing(character, angleDeg, length, color, forward, life)
+	slash(character, angleDeg, length, color, forward, life)
+	weaponEdgeTrail(character, "Santoryu", "Blade", color, (life or 0.16) + 0.12)
+end
+
+local function batSwing(character, angleDeg, length, color, forward, life)
+	slash(character, angleDeg, length, color, forward, life)
+	weaponEdgeTrail(character, "BrainrotBat", "Barrel", color, (life or 0.16) + 0.14)
+end
+
+local function kickSwing(character, side, angleDeg, length, color, forward, life)
+	slash(character, angleDeg, length, color, forward, life)
+	limbTrail(character, { side .. "Foot", side .. "LowerLeg", side .. " Leg" }, color, (life or 0.16) + 0.14)
 end
 
 -- A swirling tornado column of blade shards + rising particles.
@@ -7845,7 +7978,7 @@ end
 function Effects.ZoroM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
 	Anims.zoroM1(data.Character, data.Index)
-	slash(data.Character, side == "Right" and -32 or 32, 6, SLASH, 5, 0.16)
+	swordSwing(data.Character, side == "Right" and -32 or 32, 6, SLASH, 5, 0.16)
 	if isLocal(data.Character) then
 		local r = root(data.Character)
 		fovPunch(r and r.Position or Vector3.zero, 2, 0.14)
@@ -7861,12 +7994,12 @@ function Effects.OniGiri(data)
 	end
 	afterImage(character, SLASH, 0.4)
 	-- Three-sword cross: two diagonals + a horizontal, staggered.
-	slash(character, -45, 8, SLASH, 4, 0.2)
+	swordSwing(character, -45, 8, SLASH, 4, 0.2)
 	task.delay(0.05, function()
-		slash(character, 45, 8, SLASH, 4, 0.2)
+		swordSwing(character, 45, 8, SLASH, 4, 0.2)
 	end)
 	task.delay(0.1, function()
-		slash(character, 90, 8, BLADE, 4, 0.2)
+		swordSwing(character, 90, 8, BLADE, 4, 0.2)
 	end)
 	local r = root(character)
 	if r then
@@ -7887,8 +8020,8 @@ function Effects.ToraGari(data)
 		return r.Position + Vector3.new(0, 4, 0)
 	end, cfg.WindUp, SLASH)
 	task.delay(cfg.WindUp - 0.05, function()
-		slash(character, 8, 12, BLADE, 5, 0.22)
-		slash(character, -4, 11, SLASH, 5, 0.22)
+		swordSwing(character, 8, 12, BLADE, 5, 0.22)
+		swordSwing(character, -4, 11, SLASH, 5, 0.22)
 		local hit = r.Position + r.CFrame.LookVector * 6
 		impact(hit, { Color = SLASH, Scale = 1.5, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
 	end)
@@ -7922,11 +8055,12 @@ function Effects.SwordCombo(data)
 	end
 	afterImage(character, SLASH, 0.4)
 	speedLines(character, data.Duration or 0.9, SLASH)
+	weaponEdgeTrail(character, "Santoryu", "Blade", SLASH, (data.Duration or 0.9) + 0.2)
 	task.spawn(function()
 		local n = 6
 		for i = 1, n do
 			local side = i % 2 == 0 and 38 or -38
-			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.9)
+			Anims.zoroM1(character, i)
 			slash(character, side, 6, i == n and BLADE or SLASH, 4.5, 0.14)
 			task.wait(0.08)
 		end
@@ -8087,7 +8221,7 @@ end
 function Effects.SanjiM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
 	Anims.sanjiM1(data.Character, data.Index)
-	slash(data.Character, side == "Right" and -20 or 20, 5.5, AIR, 5, 0.15)
+	kickSwing(data.Character, side, side == "Right" and -20 or 20, 5.5, AIR, 5, 0.15)
 	if isLocal(data.Character) then
 		local r = root(data.Character)
 		fovPunch(r and r.Position or Vector3.zero, 2, 0.13)
@@ -8099,7 +8233,7 @@ function Effects.Collier(data)
 	local cfg = Config.Movesets.Sanji.Base[1]
 	task.delay(cfg.WindUp - 0.05, function()
 		kickLeg(character, "Right", 0.06, 0.12, 1.1)
-		slash(character, 90, 8, AIR, 5, 0.18) -- horizontal side kick
+		kickSwing(character, "Right", 90, 8, AIR, 5, 0.18) -- horizontal side kick
 		local r = root(character)
 		if r then
 			impact(r.Position + r.CFrame.LookVector * 6, { Color = AIR, Scale = 1 })
@@ -8117,7 +8251,7 @@ function Effects.Concasse(data)
 	Anims.sanjiHighKick(character, cfg.WindUp)
 	afterImage(character, AIR, 0.3)
 	task.delay(cfg.WindUp - 0.05, function()
-		slash(character, 4, 11, AIR, 5, 0.22) -- vertical axe kick
+		kickSwing(character, "Right", 4, 11, AIR, 5, 0.22) -- vertical axe kick
 		local hit = r.Position + r.CFrame.LookVector * 6
 		impact(hit, { Color = AIR, Scale = 1.4, Heavy = true, CrackColor = Color3.fromRGB(70, 74, 82) })
 	end)
@@ -8148,6 +8282,8 @@ function Effects.KickCombo(data)
 	end
 	afterImage(character, AIR, 0.4)
 	speedLines(character, data.Duration or 0.9, AIR)
+	limbTrail(character, { "RightFoot", "RightLowerLeg", "Right Leg" }, AIR, (data.Duration or 0.9) + 0.2)
+	limbTrail(character, { "LeftFoot", "LeftLowerLeg", "Left Leg" }, AIR, (data.Duration or 0.9) + 0.2)
 	task.spawn(function()
 		local n = 6
 		for i = 1, n do
@@ -8581,7 +8717,7 @@ local ROYAL_GOLD = Color3.fromRGB(255, 210, 90)
 function Effects.TungM1(data)
 	local side = data.Index % 2 == 0 and "Left" or "Right"
 	Anims.tungM1(data.Character, data.Index)
-	slash(data.Character, side == "Right" and -30 or 30, 6, WOOD, 5, 0.16)
+	batSwing(data.Character, side == "Right" and -30 or 30, 6, WOOD, 5, 0.16)
 end
 
 local function batSmash(character, color, big)
@@ -8590,7 +8726,7 @@ local function batSmash(character, color, big)
 		return
 	end
 	pushBothArms(character, 0.08, 0.14)
-	slash(character, 6, big and 13 or 10, color, 5, 0.22)
+	batSwing(character, 6, big and 13 or 10, color, 5, 0.22)
 	local hit = r.Position + r.CFrame.LookVector * 6
 	impact(hit, { Color = color, Scale = big and 1.8 or 1.3, Heavy = true, CrackColor = Color3.fromRGB(60, 45, 30) })
 end
@@ -8643,9 +8779,10 @@ function Effects.BatCombo(data)
 		return
 	end
 	afterImage(character, WOOD, 0.4)
+	weaponEdgeTrail(character, "BrainrotBat", "Barrel", WOOD, 0.7)
 	task.spawn(function()
 		for i = 1, 5 do
-			punchArm(character, i % 2 == 0 and "Left" or "Right", 0.05, 0.02, 0.95)
+			Anims.tungM1(character, i)
 			slash(character, i % 2 == 0 and 26 or -26, 6, WOOD, 4.5, 0.13)
 			task.wait(0.09)
 		end
