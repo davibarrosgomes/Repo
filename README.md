@@ -57,6 +57,11 @@ proper modules for editing/Rojo; `dist/` is generated from it.
 | **F** (hold) | Block — absorbs front hits until your guard breaks |
 | **G** | Activate ult (Gear 5) when the bar is full |
 
+**Gamepad (console):** R2 = M1 · D-Pad = skills 1–4 · L1 = dash · L2 (hold) =
+block · R1 = ult · X = character menu · A = jump. The PLAY button and the
+character cards are gamepad-navigable. (Remember to enable **Console** under
+Playable Devices on the Creator Dashboard.)
+
 **Blocking:** your guard has its own durability bar (regenerates while not
 blocking). It only covers the front 180°, attacking drops it, and when it
 shatters you're ragdolled and locked out of guarding for a few seconds.

@@ -4518,6 +4518,20 @@ local function setOpen(open)
 			Size = UDim2.fromOffset(720, 460),
 			BackgroundTransparency = 0,
 		}):Play()
+		-- Gamepad: focus a card so console players can navigate with the stick.
+		if GuiService.GamepadEnabled then
+			local first = next(cards) and cards[next(cards)]
+			GuiService.SelectedObject = first and first.button or nil
+		end
+	elseif GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(backdrop) then
+		GuiService.SelectedObject = nil
+	end
+end
+
+-- Open/close the menu (used by the topbar button and the gamepad X button).
+function CharacterSelect.Toggle()
+	if backdrop then
+		setOpen(not backdrop.Visible)
 	end
 end
 
@@ -4986,6 +5000,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -5192,11 +5207,14 @@ function MainMenu.Init()
 	hint.Font = Enum.Font.Gotham
 	hint.TextScaled = true
 	hint.TextColor3 = Color3.fromRGB(200, 200, 210)
-	hint.Text = "Controls:  M1 attack  ·  1-4 skills  ·  Q dash  ·  F block  ·  G ult  ·  K admin"
+	hint.Text = "KBM:  LMB attack · 1-4 skills · Q dash · F block · G ult      Gamepad:  R2 attack · DPad skills · L1 dash · L2 block · R1 ult · X menu"
 	hint.Parent = gui
 
 	local function play_pressed()
 		play.Active = false
+		if GuiService.SelectedObject == play then
+			GuiService.SelectedObject = nil
+		end
 		stopOrbit()
 		local c2 = getControls()
 		if c2 then
@@ -5218,6 +5236,11 @@ function MainMenu.Init()
 	end
 
 	play.Activated:Connect(play_pressed)
+
+	-- Gamepad: pre-select PLAY so console players can press A to start.
+	if GuiService.GamepadEnabled then
+		GuiService.SelectedObject = play
+	end
 end
 
 return MainMenu
@@ -5230,12 +5253,16 @@ end)()
 	init.client.lua
 	Client entry point: input handling + HUD/VFX bootstrapping.
 
-	Controls:
-		Left Mouse  - M1 combo
-		1 / 2 / 3 / 4 - skills
-		Q           - dash
-		F (hold)    - block
-		G           - activate Gear 5 (when the ult bar is full)
+	Keyboard/Mouse:
+		Left Mouse  - M1 combo         Q  - dash
+		1 / 2 / 3 / 4 - skills          F (hold) - block
+		G  - activate ult               K  - admin panel
+
+	Gamepad (console):
+		R2 - M1 combo                   L1 - dash
+		DPad Up/Right/Down/Left - skills 1/2/3/4
+		L2 (hold) - block               R1 - activate ult
+		X  - character menu             A  - jump (default)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -5265,6 +5292,11 @@ local SKILL_KEYS = {
 	[Enum.KeyCode.Two] = 2,
 	[Enum.KeyCode.Three] = 3,
 	[Enum.KeyCode.Four] = 4,
+	-- Gamepad: the D-pad maps to the four skills.
+	[Enum.KeyCode.DPadUp] = 1,
+	[Enum.KeyCode.DPadRight] = 2,
+	[Enum.KeyCode.DPadDown] = 3,
+	[Enum.KeyCode.DPadLeft] = 4,
 }
 
 -- The server is authoritative; this only avoids spamming remotes while
@@ -5291,27 +5323,37 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+	-- M1: left mouse or right trigger (R2).
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.ButtonR2 then
 		if canAct() then
 			M1:FireServer()
 		end
 		return
 	end
 
-	if input.KeyCode == Enum.KeyCode.G then
+	-- Ult: G or right bumper (R1).
+	if input.KeyCode == Enum.KeyCode.G or input.KeyCode == Enum.KeyCode.ButtonR1 then
 		ActivateUlt:FireServer()
 		return
 	end
 
-	if input.KeyCode == Enum.KeyCode.Q then
+	-- Dash: Q or left bumper (L1).
+	if input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.ButtonL1 then
 		if canAct() then
 			Dash:FireServer()
 		end
 		return
 	end
 
-	if input.KeyCode == Enum.KeyCode.F then
+	-- Block: hold F or left trigger (L2).
+	if input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonL2 then
 		Block:FireServer(true)
+		return
+	end
+
+	-- Character menu: X on the gamepad (keyboard uses the topbar button).
+	if input.KeyCode == Enum.KeyCode.ButtonX then
+		CharacterSelect.Toggle()
 		return
 	end
 
@@ -5322,7 +5364,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.F then
+	if input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonL2 then
 		Block:FireServer(false)
 	end
 end)

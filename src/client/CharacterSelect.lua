@@ -107,6 +107,20 @@ local function setOpen(open)
 			Size = UDim2.fromOffset(720, 460),
 			BackgroundTransparency = 0,
 		}):Play()
+		-- Gamepad: focus a card so console players can navigate with the stick.
+		if GuiService.GamepadEnabled then
+			local first = next(cards) and cards[next(cards)]
+			GuiService.SelectedObject = first and first.button or nil
+		end
+	elseif GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(backdrop) then
+		GuiService.SelectedObject = nil
+	end
+end
+
+-- Open/close the menu (used by the topbar button and the gamepad X button).
+function CharacterSelect.Toggle()
+	if backdrop then
+		setOpen(not backdrop.Visible)
 	end
 end
 

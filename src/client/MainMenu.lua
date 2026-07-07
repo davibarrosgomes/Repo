@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -215,11 +216,14 @@ function MainMenu.Init()
 	hint.Font = Enum.Font.Gotham
 	hint.TextScaled = true
 	hint.TextColor3 = Color3.fromRGB(200, 200, 210)
-	hint.Text = "Controls:  M1 attack  ·  1-4 skills  ·  Q dash  ·  F block  ·  G ult  ·  K admin"
+	hint.Text = "KBM:  LMB attack · 1-4 skills · Q dash · F block · G ult      Gamepad:  R2 attack · DPad skills · L1 dash · L2 block · R1 ult · X menu"
 	hint.Parent = gui
 
 	local function play_pressed()
 		play.Active = false
+		if GuiService.SelectedObject == play then
+			GuiService.SelectedObject = nil
+		end
 		stopOrbit()
 		local c2 = getControls()
 		if c2 then
@@ -241,6 +245,11 @@ function MainMenu.Init()
 	end
 
 	play.Activated:Connect(play_pressed)
+
+	-- Gamepad: pre-select PLAY so console players can press A to start.
+	if GuiService.GamepadEnabled then
+		GuiService.SelectedObject = play
+	end
 end
 
 return MainMenu
