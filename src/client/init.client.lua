@@ -17,6 +17,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+
+-- Never let Roblox auto-select on-screen GUI when a controller is connected:
+-- that switches the client into gamepad mode and disables mouse-click attacks.
+-- We select GUI explicitly only inside menus (PLAY button, character cards).
+GuiService.AutoSelectGuiEnabled = false
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Remotes)

@@ -258,6 +258,7 @@ function CharacterSelect.Init()
 	topButton.Text = "L"
 	topButton.BackgroundColor3 = ACCENT
 	topButton.AutoButtonColor = true
+	topButton.Selectable = false -- never steal gamepad focus during combat
 	topButton.Parent = gui
 	corner(topButton, 16)
 

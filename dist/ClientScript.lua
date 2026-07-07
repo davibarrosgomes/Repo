@@ -4669,6 +4669,7 @@ function CharacterSelect.Init()
 	topButton.Text = "L"
 	topButton.BackgroundColor3 = ACCENT
 	topButton.AutoButtonColor = true
+	topButton.Selectable = false -- never steal gamepad focus during combat
 	topButton.Parent = gui
 	corner(topButton, 16)
 
@@ -5212,9 +5213,8 @@ function MainMenu.Init()
 
 	local function play_pressed()
 		play.Active = false
-		if GuiService.SelectedObject == play then
-			GuiService.SelectedObject = nil
-		end
+		-- Release GUI focus so gameplay uses mouse/keyboard normally again.
+		GuiService.SelectedObject = nil
 		stopOrbit()
 		local c2 = getControls()
 		if c2 then
@@ -5268,6 +5268,12 @@ end)()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+
+-- Never let Roblox auto-select on-screen GUI when a controller is connected:
+-- that switches the client into gamepad mode and disables mouse-click attacks.
+-- We select GUI explicitly only inside menus (PLAY button, character cards).
+GuiService.AutoSelectGuiEnabled = false
 
 
 

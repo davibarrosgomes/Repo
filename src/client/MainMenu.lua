@@ -221,9 +221,8 @@ function MainMenu.Init()
 
 	local function play_pressed()
 		play.Active = false
-		if GuiService.SelectedObject == play then
-			GuiService.SelectedObject = nil
-		end
+		-- Release GUI focus so gameplay uses mouse/keyboard normally again.
+		GuiService.SelectedObject = nil
 		stopOrbit()
 		local c2 = getControls()
 		if c2 then
