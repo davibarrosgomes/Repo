@@ -342,6 +342,10 @@ local function addUltCharge(player, amount)
 	if not player then
 		return
 	end
+	-- No charging the ult while you are already transformed / ulting.
+	if player.Character and player.Character:GetAttribute("UltActive") then
+		return
+	end
 	local current = player:GetAttribute("UltCharge") or 0
 	player:SetAttribute("UltCharge", math.clamp(current + amount, 0, Config.Ult.MaxCharge))
 end

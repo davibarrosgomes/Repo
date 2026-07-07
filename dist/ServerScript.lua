@@ -97,7 +97,7 @@ Config.Roster = {
 		Title = "Uo Uo no Mi, Azure Dragon",
 		Color = Color3.fromRGB(90, 150, 200),
 		EarlyAccess = true,
-		GamePassId = 0, -- <-- put your Game Pass id here
+		GamePassId = 1899668818, -- Kaido early-access Game Pass
 		Price = "Early Access",
 		Moves = { "Ragnaraku", "Kaifu", "Kanabo Sweep", "Bolo Breath" },
 		Ult = "Azure Dragon",
@@ -1293,6 +1293,10 @@ end
 
 local function addUltCharge(player, amount)
 	if not player then
+		return
+	end
+	-- No charging the ult while you are already transformed / ulting.
+	if player.Character and player.Character:GetAttribute("UltActive") then
 		return
 	end
 	local current = player:GetAttribute("UltCharge") or 0
@@ -2996,6 +3000,7 @@ function Luffy.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("Gear5", true)
+	character:SetAttribute("UltActive", true)
 	character:SetAttribute("DevourUsed", false)
 
 	local token = (gear5Tokens[player] or 0) + 1
@@ -3037,6 +3042,7 @@ function Luffy.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("Gear5", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
@@ -3494,6 +3500,7 @@ function Zoro.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("Ashura", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (ashuraTokens[player] or 0) + 1
 	ashuraTokens[player] = token
@@ -3533,6 +3540,7 @@ function Zoro.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("Ashura", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
@@ -3931,6 +3939,7 @@ function Sanji.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("DiableJambe", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (diableTokens[player] or 0) + 1
 	diableTokens[player] = token
@@ -3970,6 +3979,7 @@ function Sanji.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("DiableJambe", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
@@ -4422,6 +4432,7 @@ function Ace.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("GreatFlame", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (flameTokens[player] or 0) + 1
 	flameTokens[player] = token
@@ -4460,6 +4471,7 @@ function Ace.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("GreatFlame", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
@@ -4836,6 +4848,7 @@ function Tung.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("KingMode", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (kingTokens[player] or 0) + 1
 	kingTokens[player] = token
@@ -4916,6 +4929,7 @@ function Tung.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("KingMode", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
@@ -5317,6 +5331,7 @@ function Kaido.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("Dragon", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (dragonTokens[player] or 0) + 1
 	dragonTokens[player] = token
@@ -5385,6 +5400,7 @@ function Kaido.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("Dragon", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)

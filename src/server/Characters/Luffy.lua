@@ -361,6 +361,7 @@ function Luffy.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("Gear5", true)
+	character:SetAttribute("UltActive", true)
 	character:SetAttribute("DevourUsed", false)
 
 	local token = (gear5Tokens[player] or 0) + 1
@@ -402,6 +403,7 @@ function Luffy.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("Gear5", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)

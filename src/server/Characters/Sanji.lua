@@ -346,6 +346,7 @@ function Sanji.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("DiableJambe", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (diableTokens[player] or 0) + 1
 	diableTokens[player] = token
@@ -385,6 +386,7 @@ function Sanji.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("DiableJambe", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)

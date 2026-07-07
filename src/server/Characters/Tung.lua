@@ -324,6 +324,7 @@ function Tung.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("KingMode", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (kingTokens[player] or 0) + 1
 	kingTokens[player] = token
@@ -404,6 +405,7 @@ function Tung.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("KingMode", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)

@@ -348,6 +348,7 @@ function Kaido.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("Dragon", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (dragonTokens[player] or 0) + 1
 	dragonTokens[player] = token
@@ -416,6 +417,7 @@ function Kaido.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("Dragon", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)

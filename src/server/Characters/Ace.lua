@@ -400,6 +400,7 @@ function Ace.ActivateUlt(player, character)
 
 	player:SetAttribute("UltCharge", 0)
 	character:SetAttribute("GreatFlame", true)
+	character:SetAttribute("UltActive", true)
 
 	local token = (flameTokens[player] or 0) + 1
 	flameTokens[player] = token
@@ -438,6 +439,7 @@ function Ace.DeactivateUlt(player, character)
 		return
 	end
 	character:SetAttribute("GreatFlame", false)
+	character:SetAttribute("UltActive", false)
 	character:SetAttribute("BaseWalkSpeed", Config.Character.BaseWalkSpeed)
 	character:SetAttribute("BaseJumpPower", Config.Character.BaseJumpPower)
 	Combat.RefreshMovement(character)
