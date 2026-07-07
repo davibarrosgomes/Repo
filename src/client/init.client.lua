@@ -22,7 +22,9 @@ local GuiService = game:GetService("GuiService")
 -- Never let Roblox auto-select on-screen GUI when a controller is connected:
 -- that switches the client into gamepad mode and disables mouse-click attacks.
 -- We select GUI explicitly only inside menus (PLAY button, character cards).
-GuiService.AutoSelectGuiEnabled = false
+pcall(function()
+	GuiService.AutoSelectGuiEnabled = false
+end)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Remotes)
@@ -41,13 +43,6 @@ local ActivateUlt = Remotes.get("ActivateUlt")
 local Dash = Remotes.get("Dash")
 local Block = Remotes.get("Block")
 local HUDUpdate = Remotes.get("HUDUpdate")
-
-HUD.Init()
-VFXClient.Init()
-CharacterSelect.Init()
-AdminPanel.Init()
--- The title screen takes over the camera + hides the HUD until PLAY.
-MainMenu.Init()
 
 local SKILL_KEYS = {
 	[Enum.KeyCode.One] = 1,
@@ -140,3 +135,14 @@ HUDUpdate.OnClientEvent:Connect(function(kind, ...)
 		HUD.SetDashCooldown(...)
 	end
 end)
+
+-- HUD / menu setup runs AFTER combat input is already wired, and each piece
+-- is isolated with pcall, so a menu that yields or errors can never stop
+-- attacks from working.
+pcall(HUD.Init)
+pcall(VFXClient.Init)
+pcall(CharacterSelect.Init)
+pcall(AdminPanel.Init)
+-- The title screen takes over the camera + hides the HUD until PLAY. Spawned
+-- so its wait-for-PlayerModule yield can't delay anything else.
+task.spawn(MainMenu.Init)
