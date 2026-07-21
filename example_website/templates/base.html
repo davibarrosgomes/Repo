@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · My Python Site</title>
+    <!-- url_for finds files in the static/ folder for us. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('about') }}">About</a>
+        <a href="{{ url_for('greet') }}">Greet</a>
+    </nav>
+
+    <main>
+        <!-- Each page fills in this "content" block. -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>Built with Python + Flask</footer>
+</body>
+</html>

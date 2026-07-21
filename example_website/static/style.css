@@ -1,0 +1,77 @@
+:root {
+    --accent: #3776ab; /* Python blue */
+    --bg: #f7f9fc;
+    --text: #1c2733;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+nav {
+    background: var(--accent);
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 1.5rem;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+nav a:hover { text-decoration: underline; }
+
+main {
+    max-width: 640px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+h1 { color: var(--accent); }
+
+form {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+input {
+    flex: 1;
+    padding: 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+button {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+button:hover { background: #2d5f8a; }
+
+.result {
+    margin-top: 1rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+footer {
+    text-align: center;
+    color: #7a8899;
+    padding: 2rem;
+    font-size: 0.9rem;
+}

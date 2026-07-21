@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Say hello</h1>
+
+    <!-- This form sends what you type back to the /greet route. -->
+    <form method="post">
+        <input type="text" name="name" placeholder="Your name" autofocus>
+        <button type="submit">Greet me</button>
+    </form>
+
+    {% if name %}
+        <!-- Shown only after the form is submitted. -->
+        <p class="result">Hello, {{ name }}! 👋</p>
+    {% endif %}
+{% endblock %}
